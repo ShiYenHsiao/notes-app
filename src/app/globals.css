@@ -1,0 +1,75 @@
+@import "tailwindcss";
+
+/* 深色主題用 .dark class 控制（切換器之後會加），不設 class 時跟隨系統。 */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/*
+ * 溫暖紙感的色票。
+ * 深色版不是把淺色反相 —— 底色用暖調的深棕灰而非純黑，維持同樣的紙感。
+ */
+:root {
+  --paper: #f7f3ea; /* 頁面底色 */
+  --surface: #fffdf7; /* 編輯區、卡片 */
+  --sidebar: #efe8d9; /* 側邊欄、筆記列表 */
+  --ink: #2f2a23; /* 主文字 */
+  --ink-muted: #6d6555; /* 次要文字、時間戳 */
+  --line: #e0d7c4; /* 分隔線、邊框 */
+  --accent: #a85b33; /* 連結、選取狀態 */
+  --accent-soft: #f2e3d6; /* 強調色的淡底 */
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not(.light) {
+    --paper: #1b1815;
+    --surface: #232019;
+    --sidebar: #151310;
+    --ink: #e9e1d3;
+    --ink-muted: #a79d8a;
+    --line: #38322a;
+    --accent: #d5915f;
+    --accent-soft: #33291f;
+  }
+}
+
+:root.dark {
+  --paper: #1b1815;
+  --surface: #232019;
+  --sidebar: #151310;
+  --ink: #e9e1d3;
+  --ink-muted: #a79d8a;
+  --line: #38322a;
+  --accent: #d5915f;
+  --accent-soft: #33291f;
+}
+
+@theme inline {
+  --color-paper: var(--paper);
+  --color-surface: var(--surface);
+  --color-sidebar: var(--sidebar);
+  --color-ink: var(--ink);
+  --color-ink-muted: var(--ink-muted);
+  --color-line: var(--line);
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
+
+  /*
+   * 只從 Google Fonts 載入拉丁文襯線字體，中文交給系統內建的襯線字（Mac/iOS 都有 Songti TC）。
+   * Noto Serif TC 這類 CJK webfont 動輒好幾 MB，為了一個個人筆記工具不值得。
+   */
+  --font-serif:
+    var(--font-source-serif), "Songti TC", "Noto Serif CJK TC", "Source Han Serif TC",
+    "SimSun", serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, "SF Mono", Menlo, monospace;
+}
+
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-serif);
+  line-height: 1.75; /* 紙感要靠寬鬆的行高 */
+}
+
+::selection {
+  background: var(--accent-soft);
+  color: var(--ink);
+}
