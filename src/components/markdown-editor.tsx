@@ -10,6 +10,7 @@ import { EditorState, Prec } from "@codemirror/state";
 import { basicSetup, EditorView } from "codemirror";
 import { keymap } from "@codemirror/view";
 
+import { nextChineseListMarker, parseChineseListMarker } from "@/lib/chinese-list";
 import {
   classifyIndent,
   INDENT_UNIT,
@@ -99,6 +100,18 @@ export function MarkdownEditor({
            * Markdown 本身沒有其他自動完成來源，override 掉沒有任何損失。
            */
           autocompletion({ override: [slashCommands] }),
+
+          /*
+           * 中文條列的 Enter。
+           *
+           * 必須是 Prec.highest 才排在 markdown() 的 markdownKeymap（Prec.high）前面，
+           * 否則官方那支會先把 Enter 吃掉。不是中文條列時回傳 false 交還給它，
+           * 所以 Markdown 清單的行為完全不受影響。
+           *
+           * 這個 keymap 排在 autocompletion() 後面，選單開著時 acceptCompletion
+           * 仍然先接到 Enter。
+           */
+          Prec.highest(keymap.of([{ key: "Enter", run: continueChineseList }])),
 
           // Prec.high 才蓋得過 basicSetup 自己的綁定（例如 Mod-i）。
           Prec.high(
@@ -260,6 +273,57 @@ export function MarkdownEditor({
 
 // ---------------------------------------------------------------- 編輯操作
 // 這些是給 keymap 和 EditorApi 共用的，所以放在元件外面，統一收 view 當參數。
+
+/**
+ * 中文條列的 Enter：`一、` → `二、`，`（一）` → `（二）`。
+ *
+ * 空項目上按 Enter 就把標記清掉並跳出，跟 Markdown 清單的直覺一致。
+ * 不是中文條列、游標不在行尾、或有選取範圍時一律回傳 false，交還給官方的
+ * markdownKeymap 處理，避免干擾原本的清單行為。
+ */
+function continueChineseList(view: EditorView): boolean {
+  const { state } = view;
+  const range = state.selection.main;
+
+  if (!range.empty) {
+    return false;
+  }
+
+  const line = state.doc.lineAt(range.head);
+
+  // 只在行尾接手。游標在中間時使用者要的是斷行，不是新增下一項。
+  if (range.head !== line.to) {
+    return false;
+  }
+
+  const marker = parseChineseListMarker(line.text);
+  if (marker === null) {
+    return false;
+  }
+
+  // 空項目：把整行的標記清掉，等於跳出條列
+  if (marker.content.trim() === "") {
+    view.dispatch({
+      changes: { from: line.from, to: line.to, insert: marker.indent },
+      selection: { anchor: line.from + marker.indent.length },
+      userEvent: "input",
+    });
+    return true;
+  }
+
+  const next = nextChineseListMarker(marker);
+  if (next === null) {
+    return false; // 超出支援範圍就當作一般換行
+  }
+
+  const insert = `\n${next}`;
+  view.dispatch({
+    changes: { from: range.head, insert },
+    selection: { anchor: range.head + insert.length },
+    userEvent: "input",
+  });
+  return true;
+}
 
 /**
  * Tab 的行為。判斷規則在 lib/indent-rules.ts，這裡只負責接上 CodeMirror。
