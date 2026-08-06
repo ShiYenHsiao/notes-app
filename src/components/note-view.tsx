@@ -41,10 +41,16 @@ export function NoteView({
 
   const editorApi = useRef<EditorApi | null>(null);
   const filePicker = useRef<HTMLInputElement>(null);
+  const [uploadError, setUploadError] = useState<string>();
+
   const uploadFiles = useImageUpload(note.id, userId, {
-    onStart: (placeholder) => editorApi.current?.insertAtCursor(placeholder),
+    onStart: (placeholder) => {
+      setUploadError(undefined);
+      editorApi.current?.insertAtCursor(placeholder);
+    },
     onFinish: (placeholder, replacement) =>
       editorApi.current?.replaceFirst(placeholder, replacement),
+    onError: setUploadError,
   });
 
   const [viewMode, setViewMode] = useState<ViewMode>("split");
@@ -107,6 +113,21 @@ export function NoteView({
 
       {isDesktop ? (
         <EditorToolbar api={editorApi} onOpenImagePicker={() => filePicker.current?.click()} />
+      ) : null}
+
+      {uploadError ? (
+        <div
+          role="alert"
+          className="flex items-center gap-3 border-b border-line bg-accent-soft px-4 py-2 text-sm"
+        >
+          <span className="flex-1">{uploadError}</span>
+          <button
+            onClick={() => setUploadError(undefined)}
+            className="shrink-0 underline underline-offset-4"
+          >
+            關閉
+          </button>
+        </div>
       ) : null}
 
       <div className="flex flex-1 overflow-hidden">

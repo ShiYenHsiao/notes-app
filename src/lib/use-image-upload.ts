@@ -14,8 +14,10 @@ const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
 export type UploadHandlers = {
   /** 上傳開始時呼叫，回傳的字串會被插進編輯器當佔位文字。 */
   onStart: (placeholder: string) => void;
-  /** 上傳結束時把佔位文字換成最終的 Markdown（失敗則換成錯誤提示）。 */
+  /** 上傳結束時把佔位文字換成最終的 Markdown。失敗時 replacement 是空字串。 */
   onFinish: (placeholder: string, replacement: string) => void;
+  /** 失敗訊息，要顯示給使用者看。 */
+  onError: (message: string) => void;
 };
 
 /**
@@ -50,7 +52,8 @@ export function useImageUpload(noteId: string, userId: string, handlers: UploadH
           const compressed = await compressImage(file);
 
           if (compressed.blob.size > MAX_UPLOAD_BYTES) {
-            handlers.onFinish(placeholder, `<!-- 圖片太大（超過 10 MB），沒有上傳 -->`);
+            handlers.onFinish(placeholder, "");
+            handlers.onError(`${file.name}：壓縮後仍超過 10 MB，沒有上傳。`);
             continue;
           }
 
@@ -64,7 +67,9 @@ export function useImageUpload(noteId: string, userId: string, handlers: UploadH
           });
 
           if (error) {
-            handlers.onFinish(placeholder, `<!-- 上傳失敗：${error.message} -->`);
+            console.error("Storage 上傳失敗", { path, error });
+            handlers.onFinish(placeholder, "");
+            handlers.onError(`上傳失敗：${error.message}`);
             continue;
           }
 
@@ -83,8 +88,10 @@ export function useImageUpload(noteId: string, userId: string, handlers: UploadH
           const alt = file.name.replace(/\.[^.]+$/, "");
           handlers.onFinish(placeholder, `![${alt}](${publicUrl})`);
         } catch (cause) {
-          const message = cause instanceof Error ? cause.message : "未知錯誤";
-          handlers.onFinish(placeholder, `<!-- 上傳失敗：${message} -->`);
+          console.error("圖片上傳流程出錯", cause);
+          const message = cause instanceof Error ? cause.message : String(cause);
+          handlers.onFinish(placeholder, "");
+          handlers.onError(`上傳失敗：${message}`);
         }
       }
     },
