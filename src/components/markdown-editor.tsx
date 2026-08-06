@@ -3,6 +3,8 @@
 import { useEffect, useRef } from "react";
 import { markdown } from "@codemirror/lang-markdown";
 import { languages } from "@codemirror/language-data";
+import { indentLess, indentMore } from "@codemirror/commands";
+import { indentUnit } from "@codemirror/language";
 import { EditorState, Prec } from "@codemirror/state";
 import { basicSetup, EditorView } from "codemirror";
 import { keymap } from "@codemirror/view";
@@ -62,12 +64,26 @@ export function MarkdownEditor({
         doc: initialValue,
         extensions: [
           basicSetup,
+          // markdown() 預設就會掛上 markdownKeymap，Enter 會自動延續清單與編號，
+          // 在空的清單項目上再按一次 Enter 則跳出清單。
           markdown({ codeLanguages: languages }),
           EditorView.lineWrapping,
+
+          // 巢狀清單一層兩格。四格在中文行裡縮得太兇，一層就吃掉半行。
+          indentUnit.of("  "),
 
           // Prec.high 才蓋得過 basicSetup 自己的綁定（例如 Mod-i）。
           Prec.high(
             keymap.of([
+              /*
+               * Tab 縮排、Shift-Tab 反縮排。
+               *
+               * 綁走 Tab 會擋掉「用 Tab 跳出編輯器」這個無障礙出口，但 CodeMirror
+               * 內建了替代路徑：按 Escape 之後兩秒內按 Tab 會移出焦點而不是縮排。
+               * 所以這裡不需要自己處理。
+               */
+              { key: "Tab", run: indentMore, shift: indentLess },
+
               { key: "Mod-b", run: (view) => wrapSelection(view, "**") },
               { key: "Mod-i", run: (view) => wrapSelection(view, "*") },
               { key: "Mod-k", run: (view) => insertLink(view) },

@@ -93,7 +93,7 @@ export function NoteList({ notes, tags }: { notes: NoteSummary[]; tags: TagSumma
               >
                 <div className="flex items-center gap-2">
                   {note.pinned ? (
-                    <span className="shrink-0 text-[9px] text-gold" title="已釘選">
+                    <span className="shrink-0 text-[9px] text-accent" title="已釘選">
                       ◆
                     </span>
                   ) : null}

@@ -15,35 +15,38 @@
 :root {
   color-scheme: light dark;
 
-  /* 底色由深到淺：筆記列表 → 頁面 → 編輯區。側邊欄另外算，它兩個主題都是深綠。 */
-  --list: light-dark(#f4efe4, #16221f);
-  --paper: light-dark(#fbf8f0, #1a2724);
-  --surface: light-dark(#fffdfa, #1f2d2a);
+  /*
+   * 四層由深到淺：側邊欄 → 筆記列表 → 頁面 → 編輯區。
+   * 暖白而不是純白 —— 純白在長時間閱讀時偏刺眼，但只帶一點點黃，
+   * 不能黃到讓螢光筆的顏色髒掉。
+   */
+  --rail: light-dark(#f1eee7, #141312);
+  --list: light-dark(#f7f5ef, #1a1917);
+  --paper: light-dark(#fdfcf9, #1e1c1a);
+  --surface: light-dark(#ffffff, #252320);
 
-  --ink: light-dark(#243532, #dfe7e4);
-  --ink-muted: light-dark(#71807b, #8a9a95);
-  --line: light-dark(#d9d2c4, #2d403b);
+  /* 文字是帶暖的深灰，不是純黑。純黑配暖底會有一種塑膠感。 */
+  --ink: light-dark(#37352f, #e8e4db);
+  --ink-muted: light-dark(#7d7768, #9a9384);
+  --line: light-dark(#e6e2d8, #33312c);
 
-  /* 主色。深色主題要提亮，否則深綠壓在深底上看不見。 */
-  --accent: light-dark(#294b45, #86bcae);
-  --accent-soft: light-dark(#e7f0ed, #1e332e);
-
-  /* 金色只用在 eyebrow 小標與側邊欄的作用中指示，用多了會俗。 */
-  --gold: light-dark(#b88c42, #d2ab67);
+  /* 墨藍。深色主題要提亮，否則沉在深底上看不見。 */
+  --accent: light-dark(#2f5d8a, #7fb0dd);
+  --accent-soft: light-dark(#e7eef6, #1e2b36);
 
   /* 刪除這類破壞性操作，不跟一般操作同色 */
-  --danger: light-dark(#a44d45, #d98a7f);
-  --danger-soft: light-dark(#f7e4df, #3a2320);
+  --danger: light-dark(#b3392c, #e08a7c);
+  --danger-soft: light-dark(#f8e7e3, #33221f);
 
   /*
-   * 側邊欄自成一個深色區塊，淺色主題下也是深綠 —— 這是那套設計最強的視覺錨點，
-   * 跟著主題變淺就沒了。
+   * 螢光筆。四色對應讀法條時的分層：要件／例外／實務見解／自己的疑問。
+   * 深色主題不是把淺色調暗就好 —— 螢光色在深底上要降飽和度並提高一點亮度，
+   * 否則會亮到蓋過文字本身。
    */
-  --rail: light-dark(#213c37, #101b19);
-  --rail-ink: light-dark(#c9d6d2, #b6c7c2);
-  --rail-ink-strong: light-dark(#edf3ef, #e4eeea);
-  --rail-line: light-dark(rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.08));
-  --rail-hover: light-dark(rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.05));
+  --hl-yellow: light-dark(#fcf0a4, #5b5220);
+  --hl-green: light-dark(#cceac4, #2d4a2a);
+  --hl-pink: light-dark(#f9d3e0, #52293a);
+  --hl-blue: light-dark(#d2e5f7, #24405c);
 }
 
 :root.light {
@@ -83,14 +86,9 @@
   --color-line: var(--line);
   --color-accent: var(--accent);
   --color-accent-soft: var(--accent-soft);
-  --color-gold: var(--gold);
   --color-danger: var(--danger);
   --color-danger-soft: var(--danger-soft);
   --color-rail: var(--rail);
-  --color-rail-ink: var(--rail-ink);
-  --color-rail-ink-strong: var(--rail-ink-strong);
-  --color-rail-line: var(--rail-line);
-  --color-rail-hover: var(--rail-hover);
 
   /*
    * 介面用無襯線、內文用襯線 —— 這是整套設計最關鍵的一條。
@@ -113,14 +111,15 @@ body {
 }
 
 /*
- * 金色 eyebrow 小標。
- * 這是 NEXUM 那套設計的簽名式做法，用來標示區塊而不佔用標題層級。
+ * 區塊小標。用來標示分區而不佔用標題層級。
+ * 靠字級與字距做出層次，不靠顏色 —— 顏色留給真正需要被看見的東西。
  */
 .eyebrow {
-  color: var(--gold);
+  color: var(--ink-muted);
   font-size: 10px;
-  font-weight: 800;
-  letter-spacing: 0.11em;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
 }
 
 /* 登入頁：置中的卡片，底下墊一層金色暈光。 */
@@ -129,9 +128,7 @@ body {
   min-height: 100dvh;
   place-items: center;
   padding: 24px;
-  background:
-    radial-gradient(circle at 50% 15%, color-mix(in srgb, var(--gold) 13%, transparent), transparent 32%),
-    linear-gradient(135deg, var(--paper), var(--list));
+  background: linear-gradient(160deg, var(--paper), var(--list));
 }
 
 .login-card {
@@ -141,7 +138,8 @@ body {
   padding: 44px 38px;
   border: 1px solid var(--line);
   background: var(--surface);
-  box-shadow: 0 24px 70px light-dark(rgba(33, 60, 55, 0.12), rgba(0, 0, 0, 0.4));
+  border-radius: 3px;
+  box-shadow: 0 24px 70px light-dark(rgba(55, 53, 47, 0.1), rgba(0, 0, 0, 0.4));
   text-align: center;
 }
 
@@ -198,8 +196,88 @@ body::after {
 /* 預覽區是閱讀場景，跟介面反過來 —— 這裡才用襯線體，字級也放大。 */
 .markdown-body {
   font-family: var(--font-serif);
-  font-size: 15px;
-  line-height: 1.8;
+  font-size: 16px;
+  line-height: 1.75;
+}
+
+/*
+ * 螢光筆。
+ *
+ * 底色鋪滿整行會讓行距看起來不均，所以用 box-shadow 撐出上下的內距，
+ * 而不是 padding —— padding 會把行高推開。
+ */
+.markdown-body mark {
+  border-radius: 2px;
+  background: var(--hl-yellow);
+  box-shadow: 0 0 0 2px var(--hl-yellow);
+  color: inherit;
+}
+
+.markdown-body mark[data-hl="g"] {
+  background: var(--hl-green);
+  box-shadow: 0 0 0 2px var(--hl-green);
+}
+
+.markdown-body mark[data-hl="p"] {
+  background: var(--hl-pink);
+  box-shadow: 0 0 0 2px var(--hl-pink);
+}
+
+.markdown-body mark[data-hl="b"] {
+  background: var(--hl-blue);
+  box-shadow: 0 0 0 2px var(--hl-blue);
+}
+
+/*
+ * 重點區塊（callout）。
+ *
+ * 底層仍是 blockquote，所以不支援的編輯器至少會顯示成引用而不是亂碼。
+ */
+.markdown-body .callout {
+  display: grid;
+  gap: 0.35em;
+  margin: 1.1em 0;
+  padding: 0.85em 1em;
+  border: 0;
+  border-left: 3px solid var(--callout-tone);
+  border-radius: 0 3px 3px 0;
+  background: color-mix(in srgb, var(--callout-tone) 8%, transparent);
+  color: inherit;
+}
+
+.markdown-body .callout-label {
+  display: flex;
+  align-items: center;
+  gap: 0.4em;
+  color: var(--callout-tone);
+  font-family: var(--font-sans);
+  font-size: 0.75em;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.markdown-body .callout > :last-child {
+  margin-bottom: 0;
+}
+
+.markdown-body .callout p {
+  margin: 0;
+}
+
+.markdown-body .callout-note {
+  --callout-tone: var(--accent);
+}
+.markdown-body .callout-tip {
+  --callout-tone: light-dark(#3f7d5e, #7fc4a0);
+}
+.markdown-body .callout-important {
+  --callout-tone: light-dark(#7a52a8, #b596d8);
+}
+.markdown-body .callout-warning {
+  --callout-tone: light-dark(#a8722a, #d8a760);
+}
+.markdown-body .callout-caution {
+  --callout-tone: var(--danger);
 }
 
 .markdown-body h1,

@@ -31,14 +31,14 @@ export default async function LoginPage({
     <main className="login-page">
       <div className="login-card">
         <span
-          className="mb-4 grid size-[58px] place-items-center border border-gold text-[34px] text-accent"
+          className="mb-4 grid size-[52px] place-items-center rounded-[3px] bg-accent text-[26px] text-white"
           style={{ fontFamily: "var(--font-serif)" }}
           aria-hidden
         >
           筆
         </span>
 
-        <p className="eyebrow">NOTES</p>
+        <p className="eyebrow">Notes</p>
         <h1 className="mt-3 mb-2 text-[28px]" style={{ fontFamily: "var(--font-serif)" }}>
           筆記
         </h1>

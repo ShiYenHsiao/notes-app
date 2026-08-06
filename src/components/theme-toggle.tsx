@@ -46,7 +46,7 @@ export function ThemeToggle() {
 
   return (
     <div
-      className="flex items-center gap-0.5 rounded-full border border-rail-line p-0.5"
+      className="flex items-center gap-0.5 rounded-[3px] border border-line p-0.5"
       role="group"
       aria-label="主題"
     >
@@ -57,10 +57,10 @@ export function ThemeToggle() {
           title={option.title}
           aria-pressed={preference === option.value}
           onClick={() => choose(option.value)}
-          className={`flex-1 rounded-full px-2 py-1 text-[9px] font-extrabold transition-colors ${
+          className={`flex-1 rounded-[2px] px-2 py-1 text-[10px] font-medium transition-colors ${
             preference === option.value
-              ? "bg-gold/20 text-gold"
-              : "text-rail-ink/60 hover:text-rail-ink-strong"
+              ? "bg-accent-soft text-accent"
+              : "text-ink-muted hover:text-ink"
           }`}
         >
           {option.label}
