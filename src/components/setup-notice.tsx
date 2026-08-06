@@ -23,6 +23,12 @@ export function SetupNotice() {
           複製 <Code>.env.example</Code> 成 <Code>.env.local</Code>，把 Project Settings → API
           裡的 URL 與 publishable key 填進去，然後重啟 dev server。
         </Step>
+
+        <Step n={4} title="登入之後把註冊關掉">
+          Supabase 預設任何人都能用 magic link 自行註冊。第一次登入成功後，到 Authentication
+          → Sign In / Providers 關掉 <Code>Allow new users to sign up</Code>，這個站才真的
+          只有你進得來。
+        </Step>
       </ol>
     </main>
   );
