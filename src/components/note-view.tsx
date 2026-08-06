@@ -56,6 +56,29 @@ export function NoteView({
 
   const [viewMode, setViewMode] = useState<ViewMode>("split");
 
+  /*
+   * 一般段落的 Tab 被擋下來時的提示。
+   * 只存在於介面上，不會寫進筆記內容，也不會被 Markdown 渲染。
+   */
+  const [indentHint, setIndentHint] = useState(false);
+  const indentHintTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const showIndentHint = useCallback(() => {
+    setIndentHint(true);
+    if (indentHintTimer.current !== null) {
+      clearTimeout(indentHintTimer.current);
+    }
+    indentHintTimer.current = setTimeout(() => setIndentHint(false), 6000);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (indentHintTimer.current !== null) {
+        clearTimeout(indentHintTimer.current);
+      }
+    };
+  }, []);
+
   // ⌘1 / ⌘2 / ⌘3 切換三種檢視。這些鍵瀏覽器沒有佔用，攔得下來。
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
@@ -134,6 +157,26 @@ export function NoteView({
         <EditorToolbar api={editorApi} onOpenImagePicker={() => filePicker.current?.click()} />
       ) : null}
 
+      {indentHint ? (
+        <div
+          role="status"
+          className="flex items-start gap-3 border-b border-line bg-accent-soft px-4 py-2 text-[12px]"
+        >
+          <span className="flex-1">
+            一般段落再縮一層就會滿四個空白，Markdown 會把整行當成程式碼區塊，
+            <code className="mx-0.5">==螢光標記==</code>
+            也會失效，所以這次沒有縮。需要層次請用清單或引用；要寫程式碼請用{" "}
+            <code className="mx-0.5">```</code> 圍欄式區塊。
+          </span>
+          <button
+            onClick={() => setIndentHint(false)}
+            className="shrink-0 underline underline-offset-4"
+          >
+            知道了
+          </button>
+        </div>
+      ) : null}
+
       {uploadError ? (
         <div
           role="alert"
@@ -149,21 +192,34 @@ export function NoteView({
         </div>
       ) : null}
 
-      <div className="flex flex-1 overflow-hidden">
+      {/*
+        分割模式下兩欄各半。min-w-0 是必要的：flex 項目的預設 min-width 是 auto，
+        少了它，長網址或寬表格會把欄位撐開而讓整頁出現水平捲軸。
+      */}
+      <div className="flex min-w-0 flex-1 overflow-hidden">
         {showEditor ? (
-          <div className={`${showPreview ? "flex-1 border-r border-line" : "w-full"} bg-surface`}>
+          <div
+            className={`min-w-0 bg-surface ${
+              showPreview ? "flex-1 basis-1/2 border-r border-line" : "w-full"
+            }`}
+          >
             <MarkdownEditor
               initialValue={note.content}
               onChange={setContent}
               onFiles={uploadFiles}
               onSaveRequest={save.saveNow}
+              onIndentBlocked={showIndentHint}
               apiRef={editorApi}
             />
           </div>
         ) : null}
 
         {showPreview ? (
-          <div className="flex-1 overflow-y-auto bg-paper px-6 py-6">
+          <div
+            className={`min-w-0 overflow-y-auto bg-paper px-7 py-6 ${
+              showEditor ? "flex-1 basis-1/2" : "w-full"
+            }`}
+          >
             <MarkdownPreview content={content} />
           </div>
         ) : null}

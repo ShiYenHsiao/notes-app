@@ -342,26 +342,62 @@ body::after {
   border-top: 1px solid var(--line);
 }
 
+/* 行內 code 跟區塊要長得不一樣：這個是小圓角膠囊，區塊是帶標籤的方框。 */
 .markdown-body code {
-  padding: 0.15em 0.4em;
-  border-radius: 0.25rem;
-  background: var(--accent-soft);
+  padding: 0.12em 0.4em;
+  border: 1px solid color-mix(in srgb, var(--line) 70%, transparent);
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--ink) 4%, transparent);
   font-family: var(--font-mono);
   font-size: 0.85em;
 }
 
+/*
+ * 程式碼區塊。
+ *
+ * 要跟 callout 這類提示框明確區分 —— 縮排四格會意外產生程式碼區塊，
+ * 使用者得一眼看出「這是程式碼，裡面的語法不會被解析」而不是某種容器。
+ * 靠三件事做到：等寬字體、左上角的識別標籤、以及跟 callout 不同的邊框樣式。
+ */
 .markdown-body pre {
-  padding: 1em;
+  position: relative;
+  margin: 1.2em 0;
+  padding: 1.9em 1em 1em;
   border: 1px solid var(--line);
-  border-radius: 0.5rem;
-  background: var(--list);
+  border-radius: 3px;
+  background: light-dark(#f6f4ee, #191817);
   overflow-x: auto; /* 長程式碼自己捲，不要撐開整頁 */
 }
 
+.markdown-body pre::before {
+  content: "程式碼";
+  position: absolute;
+  top: 0;
+  left: 0;
+  padding: 0.25em 0.7em;
+  border-right: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  border-radius: 3px 0 3px 0;
+  background: color-mix(in srgb, var(--ink) 5%, transparent);
+  color: var(--ink-muted);
+  font-family: var(--font-sans);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+}
+
 .markdown-body pre code {
+  display: block;
   padding: 0;
+  border-radius: 0;
   background: none;
-  font-size: 0.85em;
+  color: var(--ink);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 1.65;
+  /* 程式碼區塊內是 literal text，不該被當成語法，字距也不要跟著內文走 */
+  letter-spacing: 0;
+  white-space: pre;
 }
 
 .markdown-body table {

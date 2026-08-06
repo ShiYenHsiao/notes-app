@@ -169,6 +169,15 @@ export function IconCallout(props: IconProps) {
   );
 }
 
+export function IconBook(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M4 4.5A1.5 1.5 0 0 1 5.5 3H19v15H5.5A1.5 1.5 0 0 0 4 19.5z" />
+      <path d="M4 19.5A1.5 1.5 0 0 1 5.5 18H19v3H5.5A1.5 1.5 0 0 1 4 19.5z" />
+    </Icon>
+  );
+}
+
 export function IconSearch(props: IconProps) {
   return (
     <Icon {...props}>

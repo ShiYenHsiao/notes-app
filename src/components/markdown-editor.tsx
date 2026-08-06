@@ -10,6 +10,7 @@ import { EditorState, Prec } from "@codemirror/state";
 import { basicSetup, EditorView } from "codemirror";
 import { keymap } from "@codemirror/view";
 
+import { classifyIndent, INDENT_UNIT } from "@/lib/indent-rules";
 import { slashCommands } from "@/lib/slash-commands";
 
 /** 螢光筆的顏色代號。省略代表黃色，寫進 Markdown 時不加後綴。 */
@@ -38,6 +39,7 @@ export function MarkdownEditor({
   onChange,
   onFiles,
   onSaveRequest,
+  onIndentBlocked,
   apiRef,
 }: {
   initialValue: string;
@@ -46,6 +48,8 @@ export function MarkdownEditor({
   onFiles?: (files: File[]) => void;
   /** 按下 Cmd+S。平常已自動存檔，這是求心安用的。 */
   onSaveRequest?: () => void;
+  /** 一般段落的 Tab 被擋下來時通知外層顯示提示。 */
+  onIndentBlocked?: () => void;
   apiRef?: React.RefObject<EditorApi | null>;
 }) {
   const host = useRef<HTMLDivElement>(null);
@@ -54,11 +58,13 @@ export function MarkdownEditor({
   const onChangeRef = useRef(onChange);
   const onFilesRef = useRef(onFiles);
   const onSaveRef = useRef(onSaveRequest);
+  const onIndentBlockedRef = useRef(onIndentBlocked);
   useEffect(() => {
     onChangeRef.current = onChange;
     onFilesRef.current = onFiles;
     onSaveRef.current = onSaveRequest;
-  }, [onChange, onFiles, onSaveRequest]);
+    onIndentBlockedRef.current = onIndentBlocked;
+  }, [onChange, onFiles, onSaveRequest, onIndentBlocked]);
 
   useEffect(() => {
     const element = host.current;
@@ -78,7 +84,7 @@ export function MarkdownEditor({
           EditorView.lineWrapping,
 
           // 巢狀清單一層兩格。四格在中文行裡縮得太兇，一層就吃掉半行。
-          indentUnit.of("  "),
+          indentUnit.of(INDENT_UNIT),
 
           /*
            * 斜線命令。
@@ -99,7 +105,11 @@ export function MarkdownEditor({
                * 內建了替代路徑：按 Escape 之後兩秒內按 Tab 會移出焦點而不是縮排。
                * 所以這裡不需要自己處理。
                */
-              { key: "Tab", run: indentMore, shift: indentLess },
+              {
+                key: "Tab",
+                run: (view) => smartIndent(view, () => onIndentBlockedRef.current?.()),
+                shift: indentLess,
+              },
 
               { key: "Mod-b", run: (view) => wrapSelection(view, "**") },
               { key: "Mod-i", run: (view) => wrapSelection(view, "*") },
@@ -210,6 +220,29 @@ export function MarkdownEditor({
 
 // ---------------------------------------------------------------- 編輯操作
 // 這些是給 keymap 和 EditorApi 共用的，所以放在元件外面，統一收 view 當參數。
+
+/**
+ * Tab 的行為。判斷規則在 lib/indent-rules.ts，這裡只負責接上 CodeMirror。
+ * 真的要寫程式碼請用 ``` 圍欄式區塊，那個完全不受影響。
+ */
+function smartIndent(view: EditorView, onBlocked: () => void): boolean {
+  const { state } = view;
+  const range = state.selection.main;
+
+  const decision = classifyIndent({
+    lineText: state.doc.lineAt(range.head).text,
+    multiLine:
+      !range.empty &&
+      state.doc.lineAt(range.from).number !== state.doc.lineAt(range.to).number,
+  });
+
+  if (decision === "blocked") {
+    onBlocked();
+    return true; // 攔下來，不要讓它靜默變成程式碼區塊
+  }
+
+  return indentMore(view);
+}
 
 function wrapSelection(view: EditorView, before: string, after = before): boolean {
   const { from, to } = view.state.selection.main;
