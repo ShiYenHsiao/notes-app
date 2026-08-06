@@ -3,6 +3,8 @@
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
+import { rehypeHighlight } from "@/lib/rehype-highlight";
+
 /**
  * 右欄的渲染結果，手機唯讀模式也用同一個元件。
  *
@@ -16,7 +18,11 @@ export function MarkdownPreview({ content }: { content: string }) {
 
   return (
     <div className="markdown-body">
-      <ReactMarkdown remarkPlugins={[remarkGfm]} components={{ img: Image }}>
+      <ReactMarkdown
+        remarkPlugins={[remarkGfm]}
+        rehypePlugins={[rehypeHighlight]}
+        components={{ img: Image }}
+      >
         {content}
       </ReactMarkdown>
     </div>

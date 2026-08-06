@@ -9,6 +9,9 @@ import { EditorState, Prec } from "@codemirror/state";
 import { basicSetup, EditorView } from "codemirror";
 import { keymap } from "@codemirror/view";
 
+/** 螢光筆的顏色代號。省略代表黃色，寫進 Markdown 時不加後綴。 */
+export type HighlightColor = "g" | "p" | "b";
+
 /** 讓外層（工具列、上傳流程、快捷鍵）能操作編輯器內容。 */
 export type EditorApi = {
   insertAtCursor(text: string): void;
@@ -18,6 +21,8 @@ export type EditorApi = {
   wrapSelection(before: string, after?: string): void;
   /** 插入連結語法，游標落在網址的括號裡。 */
   insertLink(): void;
+  /** 套用螢光筆。不給顏色就是預設的黃色。 */
+  applyHighlight(color?: HighlightColor): void;
   /** 在選取範圍涵蓋的每一行前面加上前綴，已經有的話則移除（切換）。 */
   toggleLinePrefix(prefix: string): void;
   /** 在游標所在行的下方插入一個區塊。 */
@@ -88,6 +93,7 @@ export function MarkdownEditor({
               { key: "Mod-i", run: (view) => wrapSelection(view, "*") },
               { key: "Mod-k", run: (view) => insertLink(view) },
               { key: "Mod-Shift-c", run: (view) => insertBlock(view, "```\n\n```") },
+              { key: "Mod-Shift-h", run: (view) => applyHighlight(view) },
               {
                 key: "Mod-s",
                 run: () => {
@@ -162,6 +168,9 @@ export function MarkdownEditor({
         insertLink() {
           insertLink(view);
         },
+        applyHighlight(color) {
+          applyHighlight(view, color);
+        },
         toggleLinePrefix(prefix) {
           toggleLinePrefix(view, prefix);
         },
@@ -200,6 +209,47 @@ function wrapSelection(view: EditorView, before: string, after = before): boolea
     selection: selected
       ? { anchor: from, head: from + before.length + selected.length + after.length }
       : { anchor: from + before.length },
+  });
+  view.focus();
+  return true;
+}
+
+/**
+ * 螢光筆。
+ *
+ * 已經被標起來的再按一次會取消 —— 跟粗體斜體那些的直覺一致，
+ * 不然想改顏色還得先手動刪掉 `==`。
+ */
+function applyHighlight(view: EditorView, color?: HighlightColor): boolean {
+  const { from, to } = view.state.selection.main;
+  const selected = view.state.sliceDoc(from, to);
+
+  // 往外多看幾個字，判斷選取範圍是不是正好被 == == 包著
+  const before = view.state.sliceDoc(Math.max(0, from - 2), from);
+  const after = view.state.sliceDoc(to, Math.min(view.state.doc.length, to + 5));
+  const closing = after.match(/^==(?:\{[gpb]\})?/);
+
+  if (before === "==" && closing) {
+    view.dispatch({
+      changes: [
+        { from: from - 2, to: from, insert: "" },
+        { from: to, to: to + closing[0].length, insert: "" },
+      ],
+      selection: { anchor: from - 2, head: to - 2 },
+    });
+    view.focus();
+    return true;
+  }
+
+  const suffix = color ? `{${color}}` : "";
+  const text = `==${selected}==${suffix}`;
+
+  view.dispatch({
+    changes: { from, to, insert: text },
+    // 沒選東西就把游標放中間等著打字
+    selection: selected
+      ? { anchor: from, head: from + text.length }
+      : { anchor: from + 2 },
   });
   view.focus();
   return true;

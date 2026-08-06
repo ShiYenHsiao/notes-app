@@ -151,6 +151,24 @@ export function IconTrash(props: IconProps) {
   );
 }
 
+export function IconHighlight(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M14.5 3.5l6 6-8.5 8.5H6v-6z" />
+      <path d="M3 21h18" />
+    </Icon>
+  );
+}
+
+export function IconCallout(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M4 5v14" />
+      <path d="M9 7h11M9 12h11M9 17h7" />
+    </Icon>
+  );
+}
+
 export function IconSearch(props: IconProps) {
   return (
     <Icon {...props}>

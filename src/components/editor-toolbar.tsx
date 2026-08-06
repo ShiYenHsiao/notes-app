@@ -13,6 +13,7 @@ import {
   IconQuote,
   IconTable,
 } from "./icons";
+import { HighlightButton } from "./highlight-button";
 import type { EditorApi } from "./markdown-editor";
 
 /**
@@ -42,6 +43,7 @@ export function EditorToolbar({
       <Button title="引用" onClick={() => api.current?.toggleLinePrefix("> ")}>
         <IconQuote />
       </Button>
+      <HighlightButton api={api} />
 
       <Divider />
 
