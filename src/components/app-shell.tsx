@@ -59,11 +59,18 @@ export function AppShell({
       >
         <div className="flex items-center justify-between px-5 py-4">
           <span className="text-sm font-semibold tracking-wide text-ink-muted">筆記</span>
-          <form action={signOut}>
-            <button type="submit" className="text-xs text-ink-muted hover:text-accent">
-              登出
-            </button>
-          </form>
+          <div className="flex items-center gap-2 text-xs text-ink-muted">
+            {/* 一般 <a> 而不是 Link：這是檔案下載，不是頁面導覽 */}
+            <a href="/api/export" download title="把全部筆記與附件打包下載" className="hover:text-accent">
+              匯出
+            </a>
+            <span aria-hidden>·</span>
+            <form action={signOut}>
+              <button type="submit" className="hover:text-accent">
+                登出
+              </button>
+            </form>
+          </div>
         </div>
 
         <nav className="flex-1 overflow-y-auto px-2 pb-4 text-sm">
