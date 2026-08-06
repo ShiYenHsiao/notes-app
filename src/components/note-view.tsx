@@ -10,6 +10,7 @@ import { useAutosave } from "@/lib/use-autosave";
 
 import { MarkdownPreview } from "./markdown-preview";
 import { TagBar } from "./tag-bar";
+import { VersionHistory } from "./version-history";
 
 // CodeMirror 只在桌機載入。手機是唯讀的，沒必要讓它下載整包編輯器。
 const MarkdownEditor = dynamic(
@@ -41,6 +42,7 @@ export function NoteView({
         </Link>
 
         <div className="ml-auto flex items-center gap-3">
+          <VersionHistory noteId={note.id} />
           <form action={togglePin.bind(null, note.id, !note.pinned)}>
             <button type="submit" className="text-ink-muted hover:text-accent">
               {note.pinned ? "取消釘選" : "釘選"}

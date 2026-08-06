@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import { requireUser } from "@/lib/auth";
 import { listNotes, type NoteSummary } from "@/lib/notes";
 import { createClient } from "@/lib/supabase/server";
+import { isSnapshotDue, writeSnapshot } from "@/lib/versions";
 
 export type SaveResult =
   | { status: "saved"; updatedAt: string }
@@ -45,6 +46,20 @@ export async function saveNote(
   await requireUser();
   const supabase = await createClient();
 
+  // 快照要記錄「存檔前」的狀態，所以得在 update 之前把舊內容讀出來。
+  // 只有真的到了留快照的時間才多這一次查詢。
+  const snapshotDue = await isSnapshotDue(id);
+  let previousContent: string | null = null;
+
+  if (snapshotDue) {
+    const { data: before } = await supabase
+      .from("notes")
+      .select("content")
+      .eq("id", id)
+      .maybeSingle();
+    previousContent = before?.content ?? null;
+  }
+
   const { data, error } = await supabase
     .from("notes")
     .update({ content })
@@ -61,6 +76,10 @@ export async function saveNote(
   if (!data) {
     // 沒有任何一列被更新：不是有人先改了，就是這篇已經被丟進垃圾桶。
     return { status: "conflict" };
+  }
+
+  if (snapshotDue && previousContent !== null) {
+    await writeSnapshot(id, previousContent);
   }
 
   revalidatePath("/", "layout");

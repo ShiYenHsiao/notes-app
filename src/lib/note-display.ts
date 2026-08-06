@@ -24,6 +24,15 @@ export type NoteDetail = {
   updated_at: string;
 };
 
+/** 版本紀錄清單用。 */
+export type VersionSummary = {
+  id: string;
+  created_at: string;
+  created_label: string;
+  /** 快照當下的字數，讓人一眼看出哪一份是「還沒被刪掉」的那份。 */
+  length: number;
+};
+
 /** 側邊欄與標籤列顯示用。count 是掛在這個標籤下、還沒被刪除的筆記數。 */
 export type TagSummary = {
   id: string;
