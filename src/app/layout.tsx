@@ -1,6 +1,8 @@
 import type { Metadata, Viewport } from "next";
 import { Geist_Mono, Source_Serif_4 } from "next/font/google";
 
+import { themeInitScript } from "@/lib/theme";
+
 import "./globals.css";
 
 const sourceSerif = Source_Serif_4({
@@ -31,6 +33,10 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="zh-Hant" className={`${sourceSerif.variable} ${geistMono.variable} h-full antialiased`}>
+      <head>
+        {/* 必須在畫面繪製前同步執行，否則重整時會先閃一下系統主題的顏色 */}
+        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+      </head>
       <body className="min-h-full">{children}</body>
     </html>
   );

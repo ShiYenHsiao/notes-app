@@ -1,54 +1,69 @@
 @import "tailwindcss";
 
-/* 深色主題用 .dark class 控制（切換器之後會加），不設 class 時跟隨系統。 */
+/* 深色變體，給元件用 dark: 前綴時對得上手動切換的 class。 */
 @custom-variant dark (&:where(.dark, .dark *));
 
 /*
  * 溫暖紙感的色票。
- * 深色版不是把淺色反相 —— 底色用暖調的深棕灰而非純黑，維持同樣的紙感。
+ *
+ * 每個顏色用 light-dark() 寫成一組，只有一個定義來源。原本淺色與深色各寫一份，
+ * 改色時很容易只改到一邊 —— 已經發生過一次。
+ *
+ * 深色版不是把淺色反相：底色用暖調的深棕灰而非純黑，維持同樣的紙感。
+ *
+ * 主題切換靠 color-scheme：不加 class 時是 `light dark`，由系統決定；
+ * 加上 .light / .dark 就鎖定其中一邊，light-dark() 會跟著走。
  */
 :root {
-  --paper: #f6f2e8; /* 頁面底色 */
-  --surface: #fffdf7; /* 編輯區、卡片 */
-  --sidebar: #efe8d8; /* 側邊欄、筆記列表 */
-  --ink: #2b261f; /* 主文字 */
-  --ink-muted: #5e5648; /* 次要文字、時間戳 */
-  --line: #dbd1bc; /* 分隔線、邊框 */
-  --accent: #a1552e; /* 連結、選取狀態 */
-  --accent-soft: #f0e0d1; /* 強調色的淡底 */
-  --danger: #9c3826; /* 刪除這類破壞性操作 */
-  --danger-soft: #f4dcd6;
-  --grain: 0.04; /* 紙紋強度 */
+  color-scheme: light dark;
+
+  /*
+   * 四層由深到淺：側邊欄 → 筆記列表 → 頁面 → 編輯區。
+   * 每層都要看得出差別，不能只靠分隔線撐 —— 原本側邊欄與頁面太接近，
+   * 淺色下三欄會糊成一片。
+   */
+  --sidebar: light-dark(#ebe1cd, #131110);
+  --list: light-dark(#f2ecdf, #191614);
+  --paper: light-dark(#f7f3ea, #1e1a16);
+  --surface: light-dark(#fffdf7, #262119);
+
+  --ink: light-dark(#2b261f, #ece4d6);
+  --ink-muted: light-dark(#5e5648, #a89e8b);
+  --line: light-dark(#dbd1bc, #423a30);
+
+  --accent: light-dark(#a1552e, #d9975f);
+  --accent-soft: light-dark(#f0e0d1, #3a2e21);
+
+  /* 刪除這類破壞性操作，不跟一般操作同色 */
+  --danger: light-dark(#9c3826, #e08a72);
+  --danger-soft: light-dark(#f4dcd6, #3b2620);
+}
+
+:root.light {
+  color-scheme: light;
+}
+
+:root.dark {
+  color-scheme: dark;
+}
+
+/*
+ * 紙紋強度。
+ *
+ * light-dark() 只吃顏色，數值型的沒辦法用，所以這個仍舊要分開寫。
+ * 深色底上的雜訊比淺色底明顯，要壓低一點才不會看起來髒。
+ */
+:root {
+  --grain: 0.04;
 }
 
 @media (prefers-color-scheme: dark) {
   :root:not(.light) {
-    --paper: #1b1815;
-    --surface: #242019;
-    --sidebar: #141210;
-    --ink: #ece4d6;
-    --ink-muted: #a89e8b;
-    --line: #423a30;
-    --accent: #d9975f;
-    --accent-soft: #3a2e21;
-    --danger: #e08a72;
-    --danger-soft: #3b2620;
-    /* 深色底上的雜訊比淺色底明顯，要壓低一點才不會看起來髒 */
     --grain: 0.025;
   }
 }
 
 :root.dark {
-  --paper: #1b1815;
-  --surface: #242019;
-  --sidebar: #141210;
-  --ink: #ece4d6;
-  --ink-muted: #a89e8b;
-  --line: #423a30;
-  --accent: #d9975f;
-  --accent-soft: #3a2e21;
-  --danger: #e08a72;
-  --danger-soft: #3b2620;
   --grain: 0.025;
 }
 
@@ -56,6 +71,7 @@
   --color-paper: var(--paper);
   --color-surface: var(--surface);
   --color-sidebar: var(--sidebar);
+  --color-list: var(--list);
   --color-ink: var(--ink);
   --color-ink-muted: var(--ink-muted);
   --color-line: var(--line);

@@ -9,6 +9,7 @@ import { createNote } from "@/lib/actions/notes";
 import type { NoteSummary, TagSummary } from "@/lib/note-display";
 
 import { NoteList } from "./note-list";
+import { ThemeToggle } from "./theme-toggle";
 
 export type NoteCounts = {
   all: number;
@@ -74,6 +75,10 @@ export function AppShell({
           </div>
         </div>
 
+        <div className="px-5 pb-3">
+          <ThemeToggle />
+        </div>
+
         <nav className="flex-1 overflow-y-auto px-2 pb-4 text-sm">
           <SidebarLink href="/" label="全部" count={counts.all} active={pathname === "/"} />
           <SidebarLink
@@ -107,7 +112,7 @@ export function AppShell({
       </aside>
 
       <section
-        className={`w-full shrink-0 flex-col border-r border-line bg-sidebar/60 md:flex md:w-72 ${
+        className={`w-full shrink-0 flex-col border-r border-line bg-list md:flex md:w-72 ${
           noteOpen ? "hidden" : "flex"
         }`}
       >
