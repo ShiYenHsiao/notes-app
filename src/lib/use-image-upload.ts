@@ -39,8 +39,10 @@ export function useImageUpload(noteId: string, userId: string, handlers: UploadH
 
       for (const file of images) {
         // 佔位文字要夠獨特，之後才找得回來換掉。
+        // 刻意用純文字而不是 ![](): 空的圖片語法會在預覽區變成 <img src="">，
+        // 瀏覽器會因此重新下載整頁，React 也會警告。
         const token = crypto.randomUUID().slice(0, 8);
-        const placeholder = `![上傳中… ${token}]()`;
+        const placeholder = `⏳ 上傳中… ${token}`;
 
         handlers.onStart(placeholder);
 

@@ -16,7 +16,26 @@ export function MarkdownPreview({ content }: { content: string }) {
 
   return (
     <div className="markdown-body">
-      <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
+      <ReactMarkdown remarkPlugins={[remarkGfm]} components={{ img: Image }}>
+        {content}
+      </ReactMarkdown>
     </div>
   );
+}
+
+/**
+ * 圖片。
+ *
+ * 網址還沒打完的 `![]()` 會產生 `<img src="">`，瀏覽器看到空的 src 會把整頁再抓一次，
+ * React 也會警告。邊打字邊預覽的情況下這是常態而不是例外，所以擋在這裡。
+ */
+function Image({ src, alt }: { src?: string | Blob; alt?: string }) {
+  if (typeof src !== "string" || !src.trim()) {
+    return <span className="text-ink-muted">{alt?.trim() || "（圖片）"}</span>;
+  }
+
+  // 附件是 Supabase Storage 上的任意網址，用 next/image 得先設 remotePatterns，
+  // 而且我們也不需要它的最佳化 —— 圖片在上傳前就壓過了。
+  // eslint-disable-next-line @next/next/no-img-element
+  return <img src={src} alt={alt ?? ""} loading="lazy" />;
 }
