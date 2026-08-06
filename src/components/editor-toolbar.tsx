@@ -39,7 +39,7 @@ export function EditorToolbar({
 
       <Divider />
 
-      <Button label="🔗" title="連結 ⌘K" onClick={() => api.current?.wrapSelection("[", "]()")} />
+      <Button label="🔗" title="連結 ⌘K" onClick={() => api.current?.insertLink()} />
       <Button label="🖼" title="插入圖片" onClick={onOpenImagePicker} />
       <Button
         label="⌗"

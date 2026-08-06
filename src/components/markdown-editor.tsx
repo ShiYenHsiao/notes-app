@@ -14,6 +14,8 @@ export type EditorApi = {
   replaceFirst(needle: string, replacement: string): void;
   /** 把選取範圍包起來；沒選東西就插入標記並把游標放中間。 */
   wrapSelection(before: string, after?: string): void;
+  /** 插入連結語法，游標落在網址的括號裡。 */
+  insertLink(): void;
   /** 在選取範圍涵蓋的每一行前面加上前綴，已經有的話則移除（切換）。 */
   toggleLinePrefix(prefix: string): void;
   /** 在游標所在行的下方插入一個區塊。 */
@@ -140,6 +142,9 @@ export function MarkdownEditor({
         },
         wrapSelection(before, after) {
           wrapSelection(view, before, after);
+        },
+        insertLink() {
+          insertLink(view);
         },
         toggleLinePrefix(prefix) {
           toggleLinePrefix(view, prefix);
