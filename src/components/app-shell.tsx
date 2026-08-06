@@ -17,7 +17,10 @@ export type NoteCounts = {
 };
 
 /**
- * 桌機三欄版面：標籤側邊欄 ｜ 筆記列表 ｜ 編輯區。
+ * 桌機三欄版面：側邊欄 ｜ 筆記列表 ｜ 編輯區。
+ *
+ * 側邊欄兩個主題下都是深綠（沿用 NEXUM 的做法）—— 它是整個版面的視覺錨點，
+ * 跟著主題變淺就沒有重量了。
  *
  * 手機是唯讀的兩層導覽，用同一份 DOM 靠 CSS 切換：沒開筆記時只顯示列表，
  * 開了筆記就只顯示內容。判斷依據是網址有沒有 /n/ 前綴。
@@ -55,64 +58,80 @@ export function AppShell({
   return (
     <div className="flex h-dvh">
       <aside
-        className={`w-56 shrink-0 flex-col border-r border-line bg-sidebar ${
+        className={`w-[236px] shrink-0 flex-col bg-rail px-4 pt-6 pb-4 text-rail-ink ${
           sidebarOpen ? "hidden lg:flex" : "hidden"
         }`}
       >
-        <div className="flex items-center justify-between px-5 py-4">
-          <span className="text-sm font-semibold tracking-wide text-ink-muted">筆記</span>
-          <div className="flex items-center gap-2 text-xs text-ink-muted">
-            {/* 一般 <a> 而不是 Link：這是檔案下載，不是頁面導覽 */}
-            <a href="/api/export" download title="把全部筆記與附件打包下載" className="hover:text-accent">
-              匯出
-            </a>
-            <span aria-hidden>·</span>
-            <form action={signOut}>
-              <button type="submit" className="hover:text-accent">
-                登出
-              </button>
-            </form>
-          </div>
+        <div className="flex items-center gap-3 border-b border-rail-line px-2.5 pb-7">
+          <span
+            className="grid size-[38px] place-items-center border border-gold text-[23px] text-gold"
+            style={{ fontFamily: "var(--font-serif)" }}
+            aria-hidden
+          >
+            筆
+          </span>
+          <span className="grid gap-px">
+            <b
+              className="text-[19px] tracking-[0.13em] text-rail-ink-strong"
+              style={{ fontFamily: "var(--font-serif)" }}
+            >
+              筆記
+            </b>
+            <small className="text-[8px] tracking-[0.19em] text-rail-ink/70">NOTES</small>
+          </span>
         </div>
 
-        <div className="px-5 pb-3">
-          <ThemeToggle />
-        </div>
-
-        <nav className="flex-1 overflow-y-auto px-2 pb-4 text-sm">
-          <SidebarLink href="/" label="全部" count={counts.all} active={pathname === "/"} />
-          <SidebarLink
+        <nav className="grid gap-0.5 pt-5">
+          <RailLink href="/" label="全部" count={counts.all} active={pathname === "/"} />
+          <RailLink
             href="/trash"
             label="垃圾桶"
             count={counts.trashed}
             active={pathname === "/trash"}
           />
-          <div className="mt-4 px-3 pb-1 text-xs text-ink-muted">標籤</div>
-          {/*
-            計數 0 的標籤不列出來。點下去只會得到空列表，而且舊版留下的孤兒標籤
-            會一直堆在這裡沒辦法清掉。
-          */}
-          {usedTags.length === 0 ? (
-            <p className="px-3 py-1 text-xs text-ink-muted">還沒有標籤</p>
-          ) : (
+        </nav>
+
+        <div className="mt-6 px-3 pb-1.5">
+          <span className="eyebrow">TAGS</span>
+        </div>
+        {usedTags.length === 0 ? (
+          <p className="px-3 text-[10px] text-rail-ink/60">還沒有標籤</p>
+        ) : (
+          <nav className="grid gap-0.5 overflow-y-auto">
             <Suspense fallback={null}>
               <TagLinks tags={usedTags} />
             </Suspense>
-          )}
-        </nav>
+          </nav>
+        )}
 
-        <form action={createNote} className="border-t border-line p-3">
+        <form action={createNote} className="mt-6">
           <button
             type="submit"
-            className="w-full rounded-md bg-accent px-3 py-2 text-sm text-paper transition-opacity hover:opacity-90"
+            className="w-full rounded-[3px] border border-gold bg-gold/15 px-3 py-2.5 text-[11px] font-bold tracking-wide text-gold transition-colors hover:bg-gold/25"
           >
             新增筆記
           </button>
         </form>
+
+        <div className="mt-auto grid gap-3 border-t border-rail-line pt-3.5">
+          <ThemeToggle />
+          <div className="flex items-center gap-2 px-1 text-[10px] text-rail-ink/70">
+            {/* 一般 <a> 而不是 Link：這是檔案下載，不是頁面導覽 */}
+            <a href="/api/export" download title="把全部筆記與附件打包下載" className="hover:text-gold">
+              匯出
+            </a>
+            <span aria-hidden>·</span>
+            <form action={signOut}>
+              <button type="submit" className="hover:text-gold">
+                登出
+              </button>
+            </form>
+          </div>
+        </div>
       </aside>
 
       <section
-        className={`w-full shrink-0 flex-col border-r border-line bg-list md:flex md:w-72 ${
+        className={`w-full shrink-0 flex-col border-r border-line bg-list md:flex md:w-[300px] ${
           noteOpen ? "hidden" : "flex"
         }`}
       >
@@ -125,7 +144,7 @@ export function AppShell({
         <form action={createNote} className="border-t border-line p-3 lg:hidden">
           <button
             type="submit"
-            className="w-full rounded-md bg-accent px-3 py-2 text-sm text-paper transition-opacity hover:opacity-90"
+            className="w-full rounded-[3px] border border-accent bg-accent px-3 py-2.5 text-[11px] font-bold text-white"
           >
             新增筆記
           </button>
@@ -146,7 +165,7 @@ function TagLinks({ tags }: { tags: TagSummary[] }) {
   return (
     <>
       {tags.map((tag) => (
-        <SidebarLink
+        <RailLink
           key={tag.id}
           href={`/?tag=${tag.id}`}
           label={`#${tag.name}`}
@@ -158,7 +177,11 @@ function TagLinks({ tags }: { tags: TagSummary[] }) {
   );
 }
 
-function SidebarLink({
+/**
+ * 側邊欄的項目。
+ * 作用中的那項靠左側 2px 金色標線標示 —— 不用整塊反白，安靜但看得見。
+ */
+function RailLink({
   href,
   label,
   count,
@@ -172,12 +195,14 @@ function SidebarLink({
   return (
     <Link
       href={href}
-      className={`flex items-center justify-between rounded-md px-3 py-1.5 ${
-        active ? "bg-accent-soft text-accent" : "text-ink hover:bg-accent-soft/50"
+      className={`flex items-center gap-3 rounded-[3px] border-l-2 px-3 py-2.5 text-[13px] transition-colors ${
+        active
+          ? "border-l-gold bg-rail-hover text-rail-ink-strong"
+          : "border-l-transparent text-rail-ink hover:bg-rail-hover hover:text-rail-ink-strong"
       }`}
     >
-      <span>{label}</span>
-      <span className="font-mono text-xs text-ink-muted">{count}</span>
+      <span className="truncate">{label}</span>
+      <span className="ml-auto text-[9px] text-rail-ink/60">{count}</span>
     </Link>
   );
 }

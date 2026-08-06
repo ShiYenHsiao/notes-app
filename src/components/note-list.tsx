@@ -7,6 +7,8 @@ import { useEffect, useState, useTransition } from "react";
 import { filterNotes } from "@/lib/actions/notes";
 import { displayTitle, type NoteSummary, type TagSummary } from "@/lib/note-display";
 
+import { IconSearch } from "./icons";
+
 /** 停止輸入多久後才真的送出搜尋。 */
 const SEARCH_DEBOUNCE_MS = 250;
 
@@ -49,21 +51,24 @@ export function NoteList({ notes, tags }: { notes: NoteSummary[]; tags: TagSumma
 
   return (
     <>
-      <div className="border-b border-line p-3">
-        <input
-          type="search"
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          placeholder="搜尋筆記…"
-          className="w-full rounded-md border border-line bg-surface px-3 py-1.5 text-sm outline-none placeholder:text-ink-muted focus:border-accent"
-        />
+      <div className="border-b border-line px-3 py-3">
+        <div className="flex items-center gap-2 rounded-[4px] border border-line bg-surface px-3 py-2 focus-within:border-accent">
+          <IconSearch size={14} className="shrink-0 text-ink-muted" />
+          <input
+            type="search"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="搜尋筆記"
+            className="w-full bg-transparent text-[12px] outline-none placeholder:text-ink-muted"
+          />
+        </div>
 
         {activeTag ? (
-          <div className="mt-2 flex items-center gap-2 text-xs">
-            <span className="rounded-full bg-accent-soft px-2 py-0.5 text-accent">
+          <div className="mt-2 flex items-center gap-2">
+            <span className="rounded-full bg-accent-soft px-2.5 py-1 text-[9px] font-extrabold text-accent">
               #{activeTag.name}
             </span>
-            <Link href="/" className="text-ink-muted hover:text-accent">
+            <Link href="/" className="text-[10px] text-ink-muted hover:text-accent">
               清除篩選
             </Link>
           </div>
@@ -72,7 +77,7 @@ export function NoteList({ notes, tags }: { notes: NoteSummary[]; tags: TagSumma
 
       <ul className="flex-1 overflow-y-auto">
         {visible.length === 0 ? (
-          <li className="px-4 py-8 text-center text-sm text-ink-muted">
+          <li className="px-4 py-8 text-center text-[11px] text-ink-muted">
             {isFiltered ? (isStale ? "搜尋中…" : "找不到符合的筆記") : "還沒有筆記"}
           </li>
         ) : (
@@ -80,18 +85,24 @@ export function NoteList({ notes, tags }: { notes: NoteSummary[]; tags: TagSumma
             <li key={note.id}>
               <Link
                 href={`/n/${note.id}${tagId ? `?tag=${tagId}` : ""}`}
-                className={`block border-b border-line/60 px-4 py-3 ${
-                  note.id === activeId ? "bg-accent-soft" : "hover:bg-accent-soft/40"
+                className={`grid gap-1 border-b border-line/70 border-l-2 px-4 py-3 transition-colors ${
+                  note.id === activeId
+                    ? "border-l-accent bg-surface"
+                    : "border-l-transparent hover:bg-surface/70"
                 }`}
               >
-                <div className="flex items-baseline gap-2">
-                  {note.pinned ? <span className="text-xs text-accent">釘</span> : null}
-                  <span className="truncate font-medium">{displayTitle(note)}</span>
+                <div className="flex items-center gap-2">
+                  {note.pinned ? (
+                    <span className="shrink-0 text-[9px] text-gold" title="已釘選">
+                      ◆
+                    </span>
+                  ) : null}
+                  <b className="truncate text-[12px] font-bold">{displayTitle(note)}</b>
                 </div>
-                <div className="mt-0.5 flex items-baseline gap-2 text-xs text-ink-muted">
-                  <span className="shrink-0 font-mono">{note.updated_label}</span>
-                  <span className="truncate">{note.excerpt}</span>
-                </div>
+                {note.excerpt ? (
+                  <small className="truncate text-[9px] text-ink-muted">{note.excerpt}</small>
+                ) : null}
+                <time className="text-[9px] text-ink-muted">{note.updated_label}</time>
               </Link>
             </li>
           ))

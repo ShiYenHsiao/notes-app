@@ -4,12 +4,10 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 /*
- * 溫暖紙感的色票。
+ * 色票，沿用 NEXUM 法務工作台那套：深綠為主、金色點綴、紙色底。
  *
  * 每個顏色用 light-dark() 寫成一組，只有一個定義來源。原本淺色與深色各寫一份，
  * 改色時很容易只改到一邊 —— 已經發生過一次。
- *
- * 深色版不是把淺色反相：底色用暖調的深棕灰而非純黑，維持同樣的紙感。
  *
  * 主題切換靠 color-scheme：不加 class 時是 `light dark`，由系統決定；
  * 加上 .light / .dark 就鎖定其中一邊，light-dark() 會跟著走。
@@ -17,26 +15,35 @@
 :root {
   color-scheme: light dark;
 
-  /*
-   * 四層由深到淺：側邊欄 → 筆記列表 → 頁面 → 編輯區。
-   * 每層都要看得出差別，不能只靠分隔線撐 —— 原本側邊欄與頁面太接近，
-   * 淺色下三欄會糊成一片。
-   */
-  --sidebar: light-dark(#ebe1cd, #131110);
-  --list: light-dark(#f2ecdf, #191614);
-  --paper: light-dark(#f7f3ea, #1e1a16);
-  --surface: light-dark(#fffdf7, #262119);
+  /* 底色由深到淺：筆記列表 → 頁面 → 編輯區。側邊欄另外算，它兩個主題都是深綠。 */
+  --list: light-dark(#f4efe4, #16221f);
+  --paper: light-dark(#fbf8f0, #1a2724);
+  --surface: light-dark(#fffdfa, #1f2d2a);
 
-  --ink: light-dark(#2b261f, #ece4d6);
-  --ink-muted: light-dark(#5e5648, #a89e8b);
-  --line: light-dark(#dbd1bc, #423a30);
+  --ink: light-dark(#243532, #dfe7e4);
+  --ink-muted: light-dark(#71807b, #8a9a95);
+  --line: light-dark(#d9d2c4, #2d403b);
 
-  --accent: light-dark(#a1552e, #d9975f);
-  --accent-soft: light-dark(#f0e0d1, #3a2e21);
+  /* 主色。深色主題要提亮，否則深綠壓在深底上看不見。 */
+  --accent: light-dark(#294b45, #86bcae);
+  --accent-soft: light-dark(#e7f0ed, #1e332e);
+
+  /* 金色只用在 eyebrow 小標與側邊欄的作用中指示，用多了會俗。 */
+  --gold: light-dark(#b88c42, #d2ab67);
 
   /* 刪除這類破壞性操作，不跟一般操作同色 */
-  --danger: light-dark(#9c3826, #e08a72);
-  --danger-soft: light-dark(#f4dcd6, #3b2620);
+  --danger: light-dark(#a44d45, #d98a7f);
+  --danger-soft: light-dark(#f7e4df, #3a2320);
+
+  /*
+   * 側邊欄自成一個深色區塊，淺色主題下也是深綠 —— 這是那套設計最強的視覺錨點，
+   * 跟著主題變淺就沒了。
+   */
+  --rail: light-dark(#213c37, #101b19);
+  --rail-ink: light-dark(#c9d6d2, #b6c7c2);
+  --rail-ink-strong: light-dark(#edf3ef, #e4eeea);
+  --rail-line: light-dark(rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.08));
+  --rail-hover: light-dark(rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.05));
 }
 
 :root.light {
@@ -70,31 +77,82 @@
 @theme inline {
   --color-paper: var(--paper);
   --color-surface: var(--surface);
-  --color-sidebar: var(--sidebar);
   --color-list: var(--list);
   --color-ink: var(--ink);
   --color-ink-muted: var(--ink-muted);
   --color-line: var(--line);
   --color-accent: var(--accent);
   --color-accent-soft: var(--accent-soft);
+  --color-gold: var(--gold);
   --color-danger: var(--danger);
   --color-danger-soft: var(--danger-soft);
+  --color-rail: var(--rail);
+  --color-rail-ink: var(--rail-ink);
+  --color-rail-ink-strong: var(--rail-ink-strong);
+  --color-rail-line: var(--rail-line);
+  --color-rail-hover: var(--rail-hover);
 
   /*
-   * 只從 Google Fonts 載入拉丁文襯線字體，中文交給系統內建的襯線字（Mac/iOS 都有 Songti TC）。
-   * Noto Serif TC 這類 CJK webfont 動輒好幾 MB，為了一個個人筆記工具不值得。
+   * 介面用無襯線、內文用襯線 —— 這是整套設計最關鍵的一條。
+   * 全站都用襯線體時，按鈕與計數這些元件會顯得鬆散沒有精緻感。
+   *
+   * 兩組都走系統字體，不載 webfont：Mac 有 PingFang TC 與 Georgia，
+   * CJK webfont 動輒好幾 MB，為了一個個人筆記工具不值得。
    */
-  --font-serif:
-    var(--font-source-serif), "Songti TC", "Noto Serif CJK TC", "Source Han Serif TC",
-    "SimSun", serif;
-  --font-mono: var(--font-geist-mono), ui-monospace, "SF Mono", Menlo, monospace;
+  --font-sans: "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", system-ui, sans-serif;
+  --font-serif: Georgia, "Noto Serif TC", "Songti TC", "Source Han Serif TC", serif;
+  --font-mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, monospace;
 }
 
 body {
   background: var(--paper);
   color: var(--ink);
-  font-family: var(--font-serif);
-  line-height: 1.75; /* 紙感要靠寬鬆的行高 */
+  font-family: var(--font-sans);
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+/*
+ * 金色 eyebrow 小標。
+ * 這是 NEXUM 那套設計的簽名式做法，用來標示區塊而不佔用標題層級。
+ */
+.eyebrow {
+  color: var(--gold);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.11em;
+}
+
+/* 登入頁：置中的卡片，底下墊一層金色暈光。 */
+.login-page {
+  display: grid;
+  min-height: 100dvh;
+  place-items: center;
+  padding: 24px;
+  background:
+    radial-gradient(circle at 50% 15%, color-mix(in srgb, var(--gold) 13%, transparent), transparent 32%),
+    linear-gradient(135deg, var(--paper), var(--list));
+}
+
+.login-card {
+  display: grid;
+  width: min(430px, 100%);
+  justify-items: center;
+  padding: 44px 38px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  box-shadow: 0 24px 70px light-dark(rgba(33, 60, 55, 0.12), rgba(0, 0, 0, 0.4));
+  text-align: center;
+}
+
+.login-error {
+  width: 100%;
+  margin-top: 18px;
+  padding: 10px 12px;
+  border: 1px solid color-mix(in srgb, var(--danger) 40%, transparent);
+  background: var(--danger-soft);
+  color: var(--danger);
+  font-size: 11px;
 }
 
 /*
@@ -135,6 +193,13 @@ body::after {
  */
 .markdown-body > :first-child {
   margin-top: 0;
+}
+
+/* 預覽區是閱讀場景，跟介面反過來 —— 這裡才用襯線體，字級也放大。 */
+.markdown-body {
+  font-family: var(--font-serif);
+  font-size: 15px;
+  line-height: 1.8;
 }
 
 .markdown-body h1,
@@ -211,7 +276,7 @@ body::after {
   padding: 1em;
   border: 1px solid var(--line);
   border-radius: 0.5rem;
-  background: var(--sidebar);
+  background: var(--list);
   overflow-x: auto; /* 長程式碼自己捲，不要撐開整頁 */
 }
 
@@ -237,7 +302,7 @@ body::after {
 }
 
 .markdown-body th {
-  background: var(--sidebar);
+  background: var(--list);
   font-weight: 600;
 }
 

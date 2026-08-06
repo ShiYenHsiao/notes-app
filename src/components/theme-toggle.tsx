@@ -27,6 +27,12 @@ function getServerSnapshot(): ThemePreference {
   return "system";
 }
 
+/**
+ * 主題切換。
+ *
+ * 「跟隨系統」在 Chrome 上跟的是瀏覽器自己的外觀設定（chrome://settings/appearance），
+ * 不見得等於作業系統的設定 —— 這正是需要手動選項的原因。
+ */
 export function ThemeToggle() {
   const preference = useSyncExternalStore(subscribe, readStoredTheme, getServerSnapshot);
 
@@ -40,7 +46,7 @@ export function ThemeToggle() {
 
   return (
     <div
-      className="flex items-center gap-px rounded-md border border-line p-0.5"
+      className="flex items-center gap-0.5 rounded-full border border-rail-line p-0.5"
       role="group"
       aria-label="主題"
     >
@@ -51,10 +57,10 @@ export function ThemeToggle() {
           title={option.title}
           aria-pressed={preference === option.value}
           onClick={() => choose(option.value)}
-          className={`rounded px-1.5 py-0.5 text-[10px] transition-colors ${
+          className={`flex-1 rounded-full px-2 py-1 text-[9px] font-extrabold transition-colors ${
             preference === option.value
-              ? "bg-accent-soft text-accent"
-              : "text-ink-muted hover:text-accent"
+              ? "bg-gold/20 text-gold"
+              : "text-rail-ink/60 hover:text-rail-ink-strong"
           }`}
         >
           {option.label}

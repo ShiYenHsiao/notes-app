@@ -4,9 +4,12 @@
  */
 export function SetupNotice() {
   return (
-    <main className="mx-auto max-w-2xl px-6 py-16">
-      <h1 className="text-3xl font-semibold">筆記</h1>
-      <p className="mt-2 text-ink-muted">還差一步就能開始。</p>
+    <main className="mx-auto max-w-2xl px-9 py-16">
+      <p className="eyebrow">SETUP</p>
+      <h1 className="mt-1.5 text-[30px] font-semibold" style={{ fontFamily: "var(--font-serif)" }}>
+        筆記
+      </h1>
+      <p className="mt-1.5 text-[12px] text-ink-muted">還差一步就能開始。</p>
 
       <ol className="mt-10 space-y-6">
         <Step n={1} title="建立 Supabase 專案">
@@ -37,12 +40,12 @@ export function SetupNotice() {
 function Step({ n, title, children }: { n: number; title: string; children: React.ReactNode }) {
   return (
     <li className="flex gap-4">
-      <span className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full bg-accent-soft font-mono text-sm text-accent">
+      <span className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full bg-accent-soft text-[11px] font-extrabold text-accent">
         {n}
       </span>
       <div>
-        <h2 className="font-semibold">{title}</h2>
-        <p className="mt-1 text-ink-muted">{children}</p>
+        <h2 className="text-[13px] font-bold">{title}</h2>
+        <p className="mt-1 text-[12px] text-ink-muted">{children}</p>
       </div>
     </li>
   );

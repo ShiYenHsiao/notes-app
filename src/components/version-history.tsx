@@ -61,9 +61,10 @@ export function VersionHistory({ noteId }: { noteId: string }) {
       </button>
 
       {open ? (
-        <div className="absolute right-0 z-10 mt-2 w-72 rounded-lg border border-line bg-surface shadow-lg">
-          <div className="border-b border-line px-3 py-2 text-xs text-ink-muted">
-            每 10 分鐘留一份，最多 30 份
+        <div className="absolute right-0 z-10 mt-2 w-72 rounded-[3px] border border-line bg-surface shadow-[0_22px_60px_rgba(33,60,55,0.2)]">
+          <div className="border-b border-line px-3 py-2">
+            <span className="eyebrow">VERSIONS</span>
+            <p className="mt-0.5 text-[9px] text-ink-muted">每 10 分鐘留一份，最多 30 份</p>
           </div>
 
           {error ? (

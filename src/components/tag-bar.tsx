@@ -49,7 +49,7 @@ export function TagBar({
       {tags.map((tag) => (
         <span
           key={tag.id}
-          className="flex items-center gap-1 rounded-full bg-accent-soft px-2 py-0.5 text-xs text-accent"
+          className="flex items-center gap-1.5 rounded-full bg-accent-soft px-2.5 py-1 text-[9px] font-extrabold text-accent"
         >
           #{tag.name}
           <button
@@ -57,7 +57,7 @@ export function TagBar({
             onClick={() => remove(tag.id)}
             disabled={pending}
             aria-label={`移除標籤 ${tag.name}`}
-            className="opacity-60 hover:opacity-100 disabled:opacity-30"
+            className="opacity-50 transition-opacity hover:opacity-100 disabled:opacity-25"
           >
             ×
           </button>
@@ -83,7 +83,7 @@ export function TagBar({
         maxLength={TAG_NAME_MAX_LENGTH}
         placeholder={tags.length === 0 ? "加標籤…" : ""}
         disabled={pending}
-        className="min-w-24 flex-1 bg-transparent text-xs outline-none placeholder:text-ink-muted disabled:opacity-50"
+        className="min-w-24 flex-1 bg-transparent text-[10px] outline-none placeholder:text-ink-muted disabled:opacity-50"
       />
 
       <datalist id={listId}>

@@ -28,20 +28,30 @@ export default async function LoginPage({
   }
 
   return (
-    <main className="mx-auto flex min-h-dvh max-w-sm flex-col justify-center px-6">
-      <h1 className="text-3xl font-semibold">筆記</h1>
-      <p className="mt-1 mb-8 text-ink-muted">用 email 收一封登入連結，不需要密碼。</p>
-
-      {error ? (
-        <p
-          role="alert"
-          className="mb-4 rounded-md border border-accent/40 bg-accent-soft px-3 py-2 text-sm"
+    <main className="login-page">
+      <div className="login-card">
+        <span
+          className="mb-4 grid size-[58px] place-items-center border border-gold text-[34px] text-accent"
+          style={{ fontFamily: "var(--font-serif)" }}
+          aria-hidden
         >
-          登入失敗：{error}
-        </p>
-      ) : null}
+          筆
+        </span>
 
-      <LoginForm next={safeNext} />
+        <p className="eyebrow">NOTES</p>
+        <h1 className="mt-3 mb-2 text-[28px]" style={{ fontFamily: "var(--font-serif)" }}>
+          筆記
+        </h1>
+        <span className="text-[12px] text-ink-muted">用 email 收一封登入連結，不需要密碼。</span>
+
+        {error ? (
+          <p role="alert" className="login-error">
+            {error}
+          </p>
+        ) : null}
+
+        <LoginForm next={safeNext} />
+      </div>
     </main>
   );
 }
