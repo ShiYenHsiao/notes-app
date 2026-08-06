@@ -203,13 +203,21 @@ function insertLink(view: EditorView): boolean {
   return true;
 }
 
+/**
+ * 行首那些互斥的區塊標記。
+ *
+ * 有這張表，套用新前綴時才能先把舊的拿掉 —— 少了它，在項目清單上按編號清單
+ * 會得到 `1. - 內容` 這種疊加結果。
+ */
+const LINE_PREFIX_PATTERN = /^(#{1,6} |> |- \[[ xX]\] |[-*+] |\d+\. )/;
+
 function toggleLinePrefix(view: EditorView, prefix: string): boolean {
   const { from, to } = view.state.selection.main;
   const firstLine = view.state.doc.lineAt(from);
   const lastLine = view.state.doc.lineAt(to);
 
-  const changes = [];
-  // 整段都已經有前綴時才是「移除」，否則一律補上 —— 混合狀態下補齊比較符合預期。
+  // 整段都已經是這個前綴時才是「移除」，否則一律套用 ——
+  // 混合狀態下統一成同一種比較符合預期。
   let allPrefixed = true;
   for (let n = firstLine.number; n <= lastLine.number; n += 1) {
     if (!view.state.doc.line(n).text.startsWith(prefix)) {
@@ -218,12 +226,18 @@ function toggleLinePrefix(view: EditorView, prefix: string): boolean {
     }
   }
 
+  const changes = [];
   for (let n = firstLine.number; n <= lastLine.number; n += 1) {
     const line = view.state.doc.line(n);
-    if (allPrefixed) {
-      changes.push({ from: line.from, to: line.from + prefix.length, insert: "" });
-    } else if (!line.text.startsWith(prefix)) {
-      changes.push({ from: line.from, to: line.from, insert: prefix });
+    const existing = line.text.match(LINE_PREFIX_PATTERN)?.[0] ?? "";
+    const replacement = allPrefixed ? "" : prefix;
+
+    if (existing !== replacement) {
+      changes.push({
+        from: line.from,
+        to: line.from + existing.length,
+        insert: replacement,
+      });
     }
   }
 

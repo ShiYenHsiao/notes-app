@@ -76,7 +76,13 @@ export async function addTagToNote(noteId: string, rawName: string): Promise<Tag
   return getNoteTags(noteId);
 }
 
-/** 把標籤從筆記上拿掉。標籤本身留著，之後還可能用到。 */
+/**
+ * 把標籤從筆記上拿掉。
+ *
+ * 如果拿掉之後這個標籤已經沒有掛在任何筆記上，就連標籤本身一起刪。
+ * 原本刻意保留標籤想讓自動完成之後還提得出來，但實際用起來是側邊欄不斷累積
+ * 計數 0 的死標籤，而且介面上沒有任何地方能清掉它們。沒有筆記的標籤沒有意義。
+ */
 export async function removeTagFromNote(noteId: string, tagId: string): Promise<TagSummary[]> {
   await requireUser();
   const supabase = await createClient();
@@ -89,6 +95,17 @@ export async function removeTagFromNote(noteId: string, tagId: string): Promise<
 
   if (error) {
     throw new Error(`移除標籤失敗：${error.message}`);
+  }
+
+  const { data: remaining, error: countError } = await supabase
+    .from("note_tags")
+    .select("note_id")
+    .eq("tag_id", tagId)
+    .limit(1);
+
+  // 查不到剩餘關聯時寧可留著標籤 —— 誤刪比留下一個空標籤糟糕得多。
+  if (!countError && (remaining ?? []).length === 0) {
+    await supabase.from("tags").delete().eq("id", tagId);
   }
 
   revalidatePath("/", "layout");

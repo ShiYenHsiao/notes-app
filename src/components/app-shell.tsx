@@ -36,6 +36,7 @@ export function AppShell({
   const noteOpen = pathname.startsWith("/n/");
 
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const usedTags = tags.filter((tag) => tag.count > 0);
 
   // ⌘\ 收合側邊欄。兩欄都收起來就是專注模式。
   useEffect(() => {
@@ -82,11 +83,15 @@ export function AppShell({
             active={pathname === "/trash"}
           />
           <div className="mt-4 px-3 pb-1 text-xs text-ink-muted">標籤</div>
-          {tags.length === 0 ? (
+          {/*
+            計數 0 的標籤不列出來。點下去只會得到空列表，而且舊版留下的孤兒標籤
+            會一直堆在這裡沒辦法清掉。
+          */}
+          {usedTags.length === 0 ? (
             <p className="px-3 py-1 text-xs text-ink-muted">還沒有標籤</p>
           ) : (
             <Suspense fallback={null}>
-              <TagLinks tags={tags} />
+              <TagLinks tags={usedTags} />
             </Suspense>
           )}
         </nav>
