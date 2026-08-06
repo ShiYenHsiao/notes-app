@@ -10,6 +10,7 @@ import { useAutosave } from "@/lib/use-autosave";
 import { useImageUpload } from "@/lib/use-image-upload";
 
 import { EditorToolbar } from "./editor-toolbar";
+import { IconPin, IconTrash } from "./icons";
 import type { EditorApi } from "./markdown-editor";
 import { MarkdownPreview } from "./markdown-preview";
 import { TagBar } from "./tag-bar";
@@ -82,16 +83,34 @@ export function NoteView({
           ← 返回
         </Link>
 
-        <div className="ml-auto flex items-center gap-3">
+        <div className="ml-auto flex items-center gap-0.5">
           <VersionHistory noteId={note.id} />
+
           <form action={togglePin.bind(null, note.id, !note.pinned)}>
-            <button type="submit" className="text-ink-muted hover:text-accent">
-              {note.pinned ? "取消釘選" : "釘選"}
+            <button
+              type="submit"
+              title={note.pinned ? "取消釘選" : "釘選到列表最上面"}
+              aria-label={note.pinned ? "取消釘選" : "釘選"}
+              aria-pressed={note.pinned}
+              className={`flex size-7 items-center justify-center rounded-md transition-colors hover:bg-accent-soft ${
+                note.pinned ? "text-accent" : "text-ink-muted hover:text-accent"
+              }`}
+            >
+              <IconPin />
             </button>
           </form>
+
+          {/* 刪除跟其他操作隔開，減少手滑的機會 */}
+          <span className="mx-1.5 h-4 w-px bg-line" aria-hidden />
+
           <form action={trashNote.bind(null, note.id)}>
-            <button type="submit" className="text-ink-muted hover:text-accent">
-              刪除
+            <button
+              type="submit"
+              title="丟進垃圾桶（可還原）"
+              aria-label="刪除"
+              className="flex size-7 items-center justify-center rounded-md text-ink-muted transition-colors hover:bg-danger-soft hover:text-danger"
+            >
+              <IconTrash />
             </button>
           </form>
         </div>

@@ -5,6 +5,8 @@ import { useState, useTransition } from "react";
 import { fetchVersions, restoreVersion } from "@/lib/actions/versions";
 import type { VersionSummary } from "@/lib/note-display";
 
+import { IconHistory } from "./icons";
+
 export function VersionHistory({ noteId }: { noteId: string }) {
   const [open, setOpen] = useState(false);
   const [versions, setVersions] = useState<VersionSummary[] | null>(null);
@@ -45,8 +47,17 @@ export function VersionHistory({ noteId }: { noteId: string }) {
 
   return (
     <div className="relative">
-      <button type="button" onClick={toggle} className="text-ink-muted hover:text-accent">
-        歷史
+      <button
+        type="button"
+        onClick={toggle}
+        title="版本紀錄"
+        aria-label="版本紀錄"
+        aria-expanded={open}
+        className={`flex size-7 items-center justify-center rounded-md transition-colors hover:bg-accent-soft ${
+          open ? "bg-accent-soft text-accent" : "text-ink-muted hover:text-accent"
+        }`}
+      >
+        <IconHistory />
       </button>
 
       {open ? (

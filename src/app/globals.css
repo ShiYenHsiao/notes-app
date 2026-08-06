@@ -8,38 +8,48 @@
  * 深色版不是把淺色反相 —— 底色用暖調的深棕灰而非純黑，維持同樣的紙感。
  */
 :root {
-  --paper: #f7f3ea; /* 頁面底色 */
+  --paper: #f6f2e8; /* 頁面底色 */
   --surface: #fffdf7; /* 編輯區、卡片 */
-  --sidebar: #efe8d9; /* 側邊欄、筆記列表 */
-  --ink: #2f2a23; /* 主文字 */
-  --ink-muted: #6d6555; /* 次要文字、時間戳 */
-  --line: #e0d7c4; /* 分隔線、邊框 */
-  --accent: #a85b33; /* 連結、選取狀態 */
-  --accent-soft: #f2e3d6; /* 強調色的淡底 */
+  --sidebar: #efe8d8; /* 側邊欄、筆記列表 */
+  --ink: #2b261f; /* 主文字 */
+  --ink-muted: #5e5648; /* 次要文字、時間戳 */
+  --line: #dbd1bc; /* 分隔線、邊框 */
+  --accent: #a1552e; /* 連結、選取狀態 */
+  --accent-soft: #f0e0d1; /* 強調色的淡底 */
+  --danger: #9c3826; /* 刪除這類破壞性操作 */
+  --danger-soft: #f4dcd6;
+  --grain: 0.04; /* 紙紋強度 */
 }
 
 @media (prefers-color-scheme: dark) {
   :root:not(.light) {
     --paper: #1b1815;
-    --surface: #232019;
-    --sidebar: #151310;
-    --ink: #e9e1d3;
-    --ink-muted: #a79d8a;
-    --line: #38322a;
-    --accent: #d5915f;
-    --accent-soft: #33291f;
+    --surface: #242019;
+    --sidebar: #141210;
+    --ink: #ece4d6;
+    --ink-muted: #a89e8b;
+    --line: #423a30;
+    --accent: #d9975f;
+    --accent-soft: #3a2e21;
+    --danger: #e08a72;
+    --danger-soft: #3b2620;
+    /* 深色底上的雜訊比淺色底明顯，要壓低一點才不會看起來髒 */
+    --grain: 0.025;
   }
 }
 
 :root.dark {
   --paper: #1b1815;
-  --surface: #232019;
-  --sidebar: #151310;
-  --ink: #e9e1d3;
-  --ink-muted: #a79d8a;
-  --line: #38322a;
-  --accent: #d5915f;
-  --accent-soft: #33291f;
+  --surface: #242019;
+  --sidebar: #141210;
+  --ink: #ece4d6;
+  --ink-muted: #a89e8b;
+  --line: #423a30;
+  --accent: #d9975f;
+  --accent-soft: #3a2e21;
+  --danger: #e08a72;
+  --danger-soft: #3b2620;
+  --grain: 0.025;
 }
 
 @theme inline {
@@ -51,6 +61,8 @@
   --color-line: var(--line);
   --color-accent: var(--accent);
   --color-accent-soft: var(--accent-soft);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
 
   /*
    * 只從 Google Fonts 載入拉丁文襯線字體，中文交給系統內建的襯線字（Mac/iOS 都有 Songti TC）。
@@ -67,6 +79,33 @@ body {
   color: var(--ink);
   font-family: var(--font-serif);
   line-height: 1.75; /* 紙感要靠寬鬆的行高 */
+}
+
+/*
+ * 紙紋。
+ *
+ * 純色底看起來像螢幕，加一層極淡的雜訊才有紙的質感。用 SVG 的 feTurbulence
+ * 現成產生，不必額外載入圖檔。pointer-events: none 讓它純粹是視覺層，
+ * 不會擋到任何點擊。
+ */
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  pointer-events: none;
+  opacity: var(--grain);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* 會動的東西一律尊重系統的「減少動態效果」設定 */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 
 ::selection {

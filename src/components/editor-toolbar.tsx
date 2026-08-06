@@ -1,11 +1,25 @@
 "use client";
 
+import {
+  IconBold,
+  IconChecklist,
+  IconCode,
+  IconHeading,
+  IconImage,
+  IconItalic,
+  IconLink,
+  IconList,
+  IconListOrdered,
+  IconQuote,
+  IconTable,
+} from "./icons";
 import type { EditorApi } from "./markdown-editor";
 
 /**
  * 編輯區上方的工具列。
  *
- * 每個按鈕都對應一個快捷鍵，title 上寫出來讓人慢慢從滑鼠換成鍵盤。
+ * 按功能分三組：段落結構、清單、插入。每個按鈕的 title 都寫出對應的快捷鍵，
+ * 讓人慢慢從滑鼠換成鍵盤。
  */
 export function EditorToolbar({
   api,
@@ -15,58 +29,61 @@ export function EditorToolbar({
   onOpenImagePicker: () => void;
 }) {
   return (
-    <div className="flex flex-wrap items-center gap-0.5 border-b border-line px-2 py-1">
-      <Button label="H1" title="標題" onClick={() => api.current?.toggleLinePrefix("# ")} />
-      <Button
-        label="B"
-        title="粗體 ⌘B"
-        className="font-bold"
-        onClick={() => api.current?.wrapSelection("**")}
-      />
-      <Button
-        label="I"
-        title="斜體 ⌘I"
-        className="italic"
-        onClick={() => api.current?.wrapSelection("*")}
-      />
+    <div className="flex flex-wrap items-center gap-px border-b border-line px-2 py-1.5">
+      <Button title="標題" onClick={() => api.current?.toggleLinePrefix("# ")}>
+        <IconHeading />
+      </Button>
+      <Button title="粗體  ⌘B" onClick={() => api.current?.wrapSelection("**")}>
+        <IconBold />
+      </Button>
+      <Button title="斜體  ⌘I" onClick={() => api.current?.wrapSelection("*")}>
+        <IconItalic />
+      </Button>
+      <Button title="引用" onClick={() => api.current?.toggleLinePrefix("> ")}>
+        <IconQuote />
+      </Button>
 
       <Divider />
 
-      <Button label="•" title="項目清單" onClick={() => api.current?.toggleLinePrefix("- ")} />
-      <Button label="1." title="編號清單" onClick={() => api.current?.toggleLinePrefix("1. ")} />
-      <Button label="☑" title="待辦清單" onClick={() => api.current?.toggleLinePrefix("- [ ] ")} />
-      <Button label="❝" title="引用" onClick={() => api.current?.toggleLinePrefix("> ")} />
+      <Button title="項目清單" onClick={() => api.current?.toggleLinePrefix("- ")}>
+        <IconList />
+      </Button>
+      <Button title="編號清單" onClick={() => api.current?.toggleLinePrefix("1. ")}>
+        <IconListOrdered />
+      </Button>
+      <Button title="待辦清單" onClick={() => api.current?.toggleLinePrefix("- [ ] ")}>
+        <IconChecklist />
+      </Button>
 
       <Divider />
 
-      <Button label="🔗" title="連結 ⌘K" onClick={() => api.current?.insertLink()} />
-      <Button label="🖼" title="插入圖片" onClick={onOpenImagePicker} />
+      <Button title="連結  ⌘K" onClick={() => api.current?.insertLink()}>
+        <IconLink />
+      </Button>
+      <Button title="插入圖片" onClick={onOpenImagePicker}>
+        <IconImage />
+      </Button>
+      <Button title="程式碼區塊  ⌘⇧C" onClick={() => api.current?.insertBlock("```\n\n```")}>
+        <IconCode />
+      </Button>
       <Button
-        label="⌗"
-        title="程式碼區塊 ⌘⇧C"
-        onClick={() => api.current?.insertBlock("```\n\n```")}
-      />
-      <Button
-        label="▦"
         title="表格"
-        onClick={() =>
-          api.current?.insertBlock("| 欄位 | 欄位 |\n| --- | --- |\n|  |  |")
-        }
-      />
+        onClick={() => api.current?.insertBlock("| 欄位 | 欄位 |\n| --- | --- |\n|  |  |")}
+      >
+        <IconTable />
+      </Button>
     </div>
   );
 }
 
 function Button({
-  label,
   title,
   onClick,
-  className = "",
+  children,
 }: {
-  label: string;
   title: string;
   onClick: () => void;
-  className?: string;
+  children: React.ReactNode;
 }) {
   return (
     <button
@@ -74,13 +91,13 @@ function Button({
       title={title}
       aria-label={title}
       onClick={onClick}
-      className={`min-w-7 rounded px-1.5 py-1 text-xs text-ink-muted hover:bg-accent-soft hover:text-accent ${className}`}
+      className="flex size-7 items-center justify-center rounded-md text-ink-muted transition-colors hover:bg-accent-soft hover:text-accent"
     >
-      {label}
+      {children}
     </button>
   );
 }
 
 function Divider() {
-  return <span className="mx-1 h-4 w-px bg-line" />;
+  return <span className="mx-1.5 h-4 w-px bg-line" aria-hidden />;
 }
