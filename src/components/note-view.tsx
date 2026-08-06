@@ -2,12 +2,15 @@
 
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { togglePin, trashNote } from "@/lib/actions/notes";
 import type { NoteDetail, TagSummary } from "@/lib/note-display";
 import { useAutosave } from "@/lib/use-autosave";
+import { useImageUpload } from "@/lib/use-image-upload";
 
+import { EditorToolbar } from "./editor-toolbar";
+import type { EditorApi } from "./markdown-editor";
 import { MarkdownPreview } from "./markdown-preview";
 import { TagBar } from "./tag-bar";
 import { VersionHistory } from "./version-history";
@@ -25,14 +28,46 @@ export function NoteView({
   note,
   noteTags,
   allTags,
+  userId,
 }: {
   note: NoteDetail;
   noteTags: TagSummary[];
   allTags: TagSummary[];
+  userId: string;
 }) {
   const [content, setContent] = useState(note.content);
   const save = useAutosave(note.id, content, note.updated_at);
   const isDesktop = useIsDesktop();
+
+  const editorApi = useRef<EditorApi | null>(null);
+  const filePicker = useRef<HTMLInputElement>(null);
+  const uploadFiles = useImageUpload(note.id, userId, {
+    onStart: (placeholder) => editorApi.current?.insertAtCursor(placeholder),
+    onFinish: (placeholder, replacement) =>
+      editorApi.current?.replaceFirst(placeholder, replacement),
+  });
+
+  const [viewMode, setViewMode] = useState<ViewMode>("split");
+
+  // ⌘1 / ⌘2 / ⌘3 切換三種檢視。這些鍵瀏覽器沒有佔用，攔得下來。
+  useEffect(() => {
+    function onKeyDown(event: KeyboardEvent) {
+      if (!event.metaKey || event.shiftKey || event.altKey) {
+        return;
+      }
+      const mode = VIEW_MODE_KEYS[event.key];
+      if (mode) {
+        event.preventDefault();
+        setViewMode(mode);
+      }
+    }
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
+
+  const showEditor = isDesktop && viewMode !== "preview";
+  const showPreview = !isDesktop || viewMode !== "editor";
 
   return (
     <div className="flex h-full flex-col">
@@ -70,17 +105,46 @@ export function NoteView({
         </div>
       ) : null}
 
+      {isDesktop ? (
+        <EditorToolbar api={editorApi} onOpenImagePicker={() => filePicker.current?.click()} />
+      ) : null}
+
       <div className="flex flex-1 overflow-hidden">
-        {isDesktop ? (
-          <div className="flex-1 border-r border-line bg-surface">
-            <MarkdownEditor initialValue={note.content} onChange={setContent} />
+        {showEditor ? (
+          <div className={`${showPreview ? "flex-1 border-r border-line" : "w-full"} bg-surface`}>
+            <MarkdownEditor
+              initialValue={note.content}
+              onChange={setContent}
+              onFiles={uploadFiles}
+              onSaveRequest={save.saveNow}
+              apiRef={editorApi}
+            />
           </div>
         ) : null}
 
-        <div className="flex-1 overflow-y-auto bg-paper px-6 py-6">
-          <MarkdownPreview content={content} />
-        </div>
+        {showPreview ? (
+          <div className="flex-1 overflow-y-auto bg-paper px-6 py-6">
+            <MarkdownPreview content={content} />
+          </div>
+        ) : null}
       </div>
+
+      {/* 工具列的圖片按鈕走這個，跟貼上／拖曳共用同一條上傳流程 */}
+      <input
+        ref={filePicker}
+        type="file"
+        accept="image/*"
+        multiple
+        hidden
+        onChange={(event) => {
+          const files = Array.from(event.target.files ?? []);
+          if (files.length > 0) {
+            uploadFiles(files);
+          }
+          // 清掉才能連續選同一個檔案
+          event.target.value = "";
+        }}
+      />
 
       <footer className="flex items-center gap-4 border-t border-line px-4 py-2 text-xs text-ink-muted">
         <div className="min-w-0 flex-1">
@@ -91,6 +155,15 @@ export function NoteView({
     </div>
   );
 }
+
+type ViewMode = "editor" | "split" | "preview";
+
+/** ⌘1 只看編輯、⌘2 左右分割、⌘3 只看預覽 —— 對齊 README 的快捷鍵表。 */
+const VIEW_MODE_KEYS: Record<string, ViewMode | undefined> = {
+  "1": "editor",
+  "2": "split",
+  "3": "preview",
+};
 
 const STATUS_LABELS = {
   saved: "已儲存",

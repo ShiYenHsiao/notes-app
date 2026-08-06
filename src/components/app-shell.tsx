@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
-import { Suspense } from "react";
+import { Suspense, useEffect, useState } from "react";
 
 import { signOut } from "@/lib/actions/auth";
 import { createNote } from "@/lib/actions/notes";
@@ -35,9 +35,28 @@ export function AppShell({
   const pathname = usePathname();
   const noteOpen = pathname.startsWith("/n/");
 
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+
+  // ⌘\ 收合側邊欄。兩欄都收起來就是專注模式。
+  useEffect(() => {
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.metaKey && event.key === "\\") {
+        event.preventDefault();
+        setSidebarOpen((open) => !open);
+      }
+    }
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
+
   return (
     <div className="flex h-dvh">
-      <aside className="hidden w-56 shrink-0 flex-col border-r border-line bg-sidebar lg:flex">
+      <aside
+        className={`w-56 shrink-0 flex-col border-r border-line bg-sidebar ${
+          sidebarOpen ? "hidden lg:flex" : "hidden"
+        }`}
+      >
         <div className="flex items-center justify-between px-5 py-4">
           <span className="text-sm font-semibold tracking-wide text-ink-muted">筆記</span>
           <form action={signOut}>

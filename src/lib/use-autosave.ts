@@ -38,10 +38,17 @@ export function useAutosave(noteId: string, content: string, initialUpdatedAt: s
   // 失敗後遞增，用來重新觸發下面的 effect。
   const [retryCount, setRetryCount] = useState(0);
 
+  // Cmd+S 用：下一次 effect 跑的時候不要等防抖，直接存。
+  const flushRef = useRef(false);
+  const [flushToken, setFlushToken] = useState(0);
+
   useEffect(() => {
     if (content === savedContentRef.current) {
       return;
     }
+
+    const delay = flushRef.current ? 0 : AUTOSAVE_DELAY_MS;
+    flushRef.current = false;
 
     setState({ status: "dirty", hasUnsavedChanges: true });
 
@@ -69,10 +76,10 @@ export function useAutosave(noteId: string, content: string, initialUpdatedAt: s
 
       setState({ status: "error", hasUnsavedChanges: true, message: result.message });
       setTimeout(() => setRetryCount((count) => count + 1), RETRY_DELAY_MS);
-    }, AUTOSAVE_DELAY_MS);
+    }, delay);
 
     return () => clearTimeout(timer);
-  }, [content, noteId, retryCount]);
+  }, [content, noteId, retryCount, flushToken]);
 
   // 還沒存完就關分頁的話擋一下。瀏覽器只會顯示自己的預設訊息，帶什麼字串都一樣。
   useEffect(() => {
@@ -90,5 +97,11 @@ export function useAutosave(noteId: string, content: string, initialUpdatedAt: s
 
   const retryNow = useCallback(() => setRetryCount((count) => count + 1), []);
 
-  return { ...state, retryNow };
+  /** 立刻存檔，不等防抖。內容沒有改動時什麼都不做。 */
+  const saveNow = useCallback(() => {
+    flushRef.current = true;
+    setFlushToken((token) => token + 1);
+  }, []);
+
+  return { ...state, retryNow, saveNow };
 }
