@@ -2,6 +2,7 @@ import "server-only";
 
 import type { NoteDetail, NoteSummary } from "@/lib/note-display";
 import { createClient } from "@/lib/supabase/server";
+import { noteIdsForTag } from "@/lib/tags";
 
 export type { NoteDetail, NoteSummary };
 
@@ -73,13 +74,29 @@ function toSummary(row: NoteRow): NoteSummary {
  * 搜尋只比對 content —— title 是從內文第一行推導出來的，本來就是 content 的子字串，
  * 另外再比一次沒有意義，還要處理 PostgREST 的 or 語法跳脫。
  */
-export async function listNotes(options: { query?: string; trashed?: boolean } = {}) {
+export async function listNotes(
+  options: { query?: string; trashed?: boolean; tagId?: string } = {},
+) {
   const supabase = await createClient();
+
+  // 標籤篩選先換成 id 清單再用 in()，不走 PostgREST 的 embedded filter ——
+  // 手寫的 Database 型別沒有描述關聯，embedded select 過不了型別檢查。
+  let tagFilterIds: string[] | null = null;
+  if (options.tagId) {
+    tagFilterIds = await noteIdsForTag(options.tagId);
+    if (tagFilterIds.length === 0) {
+      return [];
+    }
+  }
 
   let request = supabase
     .from("notes")
     .select("id, title, content, pinned, updated_at")
     .limit(LIST_LIMIT);
+
+  if (tagFilterIds) {
+    request = request.in("id", tagFilterIds);
+  }
 
   request = options.trashed
     ? request.not("deleted_at", "is", null).order("deleted_at", { ascending: false })

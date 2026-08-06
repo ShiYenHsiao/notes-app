@@ -1,11 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
+import { Suspense } from "react";
 
 import { signOut } from "@/lib/actions/auth";
 import { createNote } from "@/lib/actions/notes";
-import type { NoteSummary } from "@/lib/note-display";
+import type { NoteSummary, TagSummary } from "@/lib/note-display";
 
 import { NoteList } from "./note-list";
 
@@ -23,10 +24,12 @@ export type NoteCounts = {
 export function AppShell({
   counts,
   notes,
+  tags,
   children,
 }: {
   counts: NoteCounts;
   notes: NoteSummary[];
+  tags: TagSummary[];
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
@@ -53,7 +56,13 @@ export function AppShell({
             active={pathname === "/trash"}
           />
           <div className="mt-4 px-3 pb-1 text-xs text-ink-muted">標籤</div>
-          <p className="px-3 py-1 text-xs text-ink-muted">M2 才會做</p>
+          {tags.length === 0 ? (
+            <p className="px-3 py-1 text-xs text-ink-muted">還沒有標籤</p>
+          ) : (
+            <Suspense fallback={null}>
+              <TagLinks tags={tags} />
+            </Suspense>
+          )}
         </nav>
 
         <form action={createNote} className="border-t border-line p-3">
@@ -71,7 +80,10 @@ export function AppShell({
           noteOpen ? "hidden" : "flex"
         }`}
       >
-        <NoteList notes={notes} />
+        {/* useSearchParams 需要 Suspense 邊界 */}
+        <Suspense fallback={<div className="flex-1" />}>
+          <NoteList notes={notes} tags={tags} />
+        </Suspense>
 
         {/* 側邊欄在小螢幕收起來了，新增按鈕改放這裡 */}
         <form action={createNote} className="border-t border-line p-3 lg:hidden">
@@ -88,6 +100,25 @@ export function AppShell({
         {children}
       </main>
     </div>
+  );
+}
+
+function TagLinks({ tags }: { tags: TagSummary[] }) {
+  const searchParams = useSearchParams();
+  const activeTagId = searchParams.get("tag");
+
+  return (
+    <>
+      {tags.map((tag) => (
+        <SidebarLink
+          key={tag.id}
+          href={`/?tag=${tag.id}`}
+          label={`#${tag.name}`}
+          count={tag.count}
+          active={tag.id === activeTagId}
+        />
+      ))}
+    </>
   );
 }
 

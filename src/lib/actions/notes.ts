@@ -113,8 +113,11 @@ export async function togglePin(id: string, pinned: boolean) {
   revalidatePath("/", "layout");
 }
 
-/** 搜尋。給列表的輸入框即時呼叫用。 */
-export async function searchNotes(query: string): Promise<NoteSummary[]> {
+/** 搜尋與標籤篩選。給列表即時呼叫用。 */
+export async function filterNotes(options: {
+  query?: string;
+  tagId?: string;
+}): Promise<NoteSummary[]> {
   await requireUser();
-  return listNotes({ query });
+  return listNotes(options);
 }

@@ -24,6 +24,21 @@ export type NoteDetail = {
   updated_at: string;
 };
 
+/** 側邊欄與標籤列顯示用。count 是掛在這個標籤下、還沒被刪除的筆記數。 */
+export type TagSummary = {
+  id: string;
+  name: string;
+  count: number;
+};
+
+/** 標籤名稱的正規化規則，新增與比對都走這裡。 */
+export function normalizeTagName(input: string): string {
+  return input.trim().replace(/\s+/g, " ").slice(0, TAG_NAME_MAX_LENGTH);
+}
+
+/** 對齊資料表上的 check constraint。 */
+export const TAG_NAME_MAX_LENGTH = 50;
+
 /** 列表與編輯區共用的標題顯示規則：沒有標題就退回摘要，再沒有就顯示「無標題」。 */
 export function displayTitle(note: { title: string | null; excerpt?: string }): string {
   if (note.title) {

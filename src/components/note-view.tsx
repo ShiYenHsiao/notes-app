@@ -5,10 +5,11 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import { togglePin, trashNote } from "@/lib/actions/notes";
-import type { NoteDetail } from "@/lib/note-display";
+import type { NoteDetail, TagSummary } from "@/lib/note-display";
 import { useAutosave } from "@/lib/use-autosave";
 
 import { MarkdownPreview } from "./markdown-preview";
+import { TagBar } from "./tag-bar";
 
 // CodeMirror 只在桌機載入。手機是唯讀的，沒必要讓它下載整包編輯器。
 const MarkdownEditor = dynamic(
@@ -19,7 +20,15 @@ const MarkdownEditor = dynamic(
   },
 );
 
-export function NoteView({ note }: { note: NoteDetail }) {
+export function NoteView({
+  note,
+  noteTags,
+  allTags,
+}: {
+  note: NoteDetail;
+  noteTags: TagSummary[];
+  allTags: TagSummary[];
+}) {
   const [content, setContent] = useState(note.content);
   const save = useAutosave(note.id, content, note.updated_at);
   const isDesktop = useIsDesktop();
@@ -71,8 +80,10 @@ export function NoteView({ note }: { note: NoteDetail }) {
         </div>
       </div>
 
-      <footer className="flex items-center justify-between border-t border-line px-4 py-2 text-xs text-ink-muted">
-        <span>標籤列（M2）</span>
+      <footer className="flex items-center gap-4 border-t border-line px-4 py-2 text-xs text-ink-muted">
+        <div className="min-w-0 flex-1">
+          <TagBar noteId={note.id} initialTags={noteTags} allTags={allTags} />
+        </div>
         <SaveIndicator status={save.status} />
       </footer>
     </div>
