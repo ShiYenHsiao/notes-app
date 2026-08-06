@@ -170,19 +170,16 @@ supabase/         資料庫 migration
 
 ## 狀態
 
-**M1 的程式碼都寫完了，但還沒有在真的 Supabase 上跑過。**
+**M1 完成，已在真的 Supabase 專案上實測通過。**
 
-已完成：Magic Link 登入、筆記 CRUD、CodeMirror 左右分割編輯、自動存檔與狀態指示、
-搜尋、垃圾桶、手機唯讀閱讀。`npm run build` 與 eslint 都通過。
+Magic Link 登入、筆記 CRUD、CodeMirror 左右分割編輯、自動存檔與狀態指示、中文搜尋、
+垃圾桶、手機唯讀閱讀都跑得起來。migration 套用正常，樂觀鎖的衝突偵測、標題自動從
+第一行推導也都驗證過。
 
-沒驗證過的部分（需要一個真的 Supabase 專案才能測）：
+開發環境的兩個約定：
 
-- `supabase/migrations/` 裡的 SQL 一次都沒執行過。本機沒有 Docker 也沒有 Postgres，
-  跑不起來 Supabase 的本地環境。第一次套用時如果有語法錯誤是正常的。
-- 登入、讀寫、搜尋這些會碰到資料庫的流程都只到「編譯得過」為止。
-- Magic link 的信件內容與回跳，兩種信件範本的分支都沒實際收過信。
+- dev server 固定在 **3100**（`next dev --port 3100`）。Supabase 的回跳網址白名單是寫死的，
+  port 浮動的話每次重啟都要重設，所以釘死比較省事。
+- Supabase 的 **Site URL** 與 **Redirect URLs** 要設成 `http://localhost:3100`。
 
-只驗證過的部分：未設定環境變數時的說明頁、登入頁、未登入時 `/` 會導向 `/login`、
-三欄版面與深淺色主題的外觀。
-
-下一步：套用 migration、實際登入一次，把上面那些跑通，再進 M2。
+進行中：M2（標籤、附件、版本快照、工具列）。
