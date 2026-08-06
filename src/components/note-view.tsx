@@ -2,7 +2,7 @@
 
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { togglePin, trashNote } from "@/lib/actions/notes";
 import type { NoteDetail, TagSummary } from "@/lib/note-display";
@@ -36,8 +36,8 @@ export function NoteView({
   allTags: TagSummary[];
   userId: string;
 }) {
-  const [content, setContent] = useState(note.content);
-  const save = useAutosave(note.id, content, note.updated_at);
+  const [content, setContent, latestContent] = useCoalescedState(note.content);
+  const save = useAutosave(note.id, content, note.updated_at, latestContent);
   const isDesktop = useIsDesktop();
 
   const editorApi = useRef<EditorApi | null>(null);
@@ -220,6 +220,51 @@ function SaveIndicator({ status }: { status: keyof typeof STATUS_LABELS }) {
       {STATUS_LABELS[status]}
     </span>
   );
+}
+
+/** 把連續的輸入合併成一次更新的間隔。 */
+const COALESCE_MS = 120;
+
+/**
+ * 跟 useState 一樣用，但連續的 setter 呼叫會被合併成一次更新。
+ *
+ * CodeMirror 每個 transaction 都會回呼一次，直接接 setState 有兩個問題：
+ * 每按一個鍵就重繪整個編輯畫面並把整份文件重新 parse 一次；而快速輸入時
+ * 這些更新是在 MutationObserver 的 flush 裡同步發生的，會撞到 React
+ * 的巢狀更新上限而整個中斷。
+ *
+ * 合併之後預覽最多慢 120ms，感覺不出來，但按鍵不再跟重繪綁在一起。
+ */
+function useCoalescedState(
+  initial: string,
+): [string, (value: string) => void, React.RefObject<string>] {
+  const [value, setValue] = useState(initial);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // 永遠是最新的內容，不受合併延遲影響。卸載時的補存靠它。
+  const latest = useRef(initial);
+
+  const push = useCallback((next: string) => {
+    latest.current = next;
+
+    if (timer.current !== null) {
+      return;
+    }
+
+    timer.current = setTimeout(() => {
+      timer.current = null;
+      setValue(latest.current);
+    }, COALESCE_MS);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (timer.current !== null) {
+        clearTimeout(timer.current);
+      }
+    };
+  }, []);
+
+  return [value, push, latest];
 }
 
 /**

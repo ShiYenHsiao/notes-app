@@ -25,7 +25,13 @@ export type AutosaveState = {
  * 存檔時帶上前一次拿到的 updated_at 做樂觀鎖：對不上代表這篇在別的地方被改過
  * （最常見的是自己在 Mac 上開了兩個分頁），這時停下來顯示衝突，不要默默蓋掉。
  */
-export function useAutosave(noteId: string, content: string, initialUpdatedAt: string) {
+export function useAutosave(
+  noteId: string,
+  content: string,
+  initialUpdatedAt: string,
+  /** 最新的內容，可能還沒進到 content。卸載時的補存用這個。 */
+  latestContent?: React.RefObject<string>,
+) {
   const [state, setState] = useState<AutosaveState>({
     status: "saved",
     hasUnsavedChanges: false,
@@ -34,6 +40,14 @@ export function useAutosave(noteId: string, content: string, initialUpdatedAt: s
   // 這兩個值只在存檔成功時前進，放在 ref 裡才不會每次改動都重跑 effect。
   const updatedAtRef = useRef(initialUpdatedAt);
   const savedContentRef = useRef(content);
+
+  // 給卸載時的補存讀。effect 的依賴陣列是空的，只能從 ref 拿最新值。
+  const contentRef = useRef(content);
+  const noteIdRef = useRef(noteId);
+  useEffect(() => {
+    contentRef.current = content;
+    noteIdRef.current = noteId;
+  }, [content, noteId]);
 
   // 失敗後遞增，用來重新觸發下面的 effect。
   const [retryCount, setRetryCount] = useState(0);
@@ -80,6 +94,32 @@ export function useAutosave(noteId: string, content: string, initialUpdatedAt: s
 
     return () => clearTimeout(timer);
   }, [content, noteId, retryCount, flushToken]);
+
+  /*
+   * 卸載時補存。
+   *
+   * 打完字後一秒內切到別篇筆記，元件就卸載了，上面那個計時器會被清掉，
+   * 那次修改永遠不會寫進資料庫。beforeunload 只擋得住關分頁，擋不住站內切換。
+   *
+   * 依賴陣列刻意留空：這個 effect 只該在真正卸載時跑一次，
+   * 需要的值全部從 ref 讀，所以不需要列進依賴。
+   */
+  useEffect(() => {
+    return () => {
+      /*
+       * lint 會警告「ref 的值到 cleanup 執行時可能已經變了」——
+       * 這裡要的正是卸載當下的值，不是 effect 建立時的值，所以刻意這樣讀。
+       */
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+      const pending = latestContent?.current ?? contentRef.current;
+
+      if (pending !== savedContentRef.current) {
+        // 不 await：元件都要消失了，等不到結果，也沒有地方顯示錯誤。
+        void saveNote(noteIdRef.current, pending, updatedAtRef.current);
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // 還沒存完就關分頁的話擋一下。瀏覽器只會顯示自己的預設訊息，帶什麼字串都一樣。
   useEffect(() => {

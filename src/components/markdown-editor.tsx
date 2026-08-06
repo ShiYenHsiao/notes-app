@@ -4,10 +4,13 @@ import { useEffect, useRef } from "react";
 import { markdown } from "@codemirror/lang-markdown";
 import { languages } from "@codemirror/language-data";
 import { indentLess, indentMore } from "@codemirror/commands";
+import { autocompletion } from "@codemirror/autocomplete";
 import { indentUnit } from "@codemirror/language";
 import { EditorState, Prec } from "@codemirror/state";
 import { basicSetup, EditorView } from "codemirror";
 import { keymap } from "@codemirror/view";
+
+import { slashCommands } from "@/lib/slash-commands";
 
 /** 螢光筆的顏色代號。省略代表黃色，寫進 Markdown 時不加後綴。 */
 export type HighlightColor = "g" | "p" | "b";
@@ -76,6 +79,15 @@ export function MarkdownEditor({
 
           // 巢狀清單一層兩格。四格在中文行裡縮得太兇，一層就吃掉半行。
           indentUnit.of("  "),
+
+          /*
+           * 斜線命令。
+           *
+           * 用 override 明確指定唯一的來源。原本想改用 EditorState.languageData
+           * 加一個來源（理論上比較不侵入），但實測完全不觸發，連 Ctrl-Space 也叫不出來。
+           * Markdown 本身沒有其他自動完成來源，override 掉沒有任何損失。
+           */
+          autocompletion({ override: [slashCommands] }),
 
           // Prec.high 才蓋得過 basicSetup 自己的綁定（例如 Mod-i）。
           Prec.high(
@@ -367,5 +379,40 @@ const theme = EditorView.theme({
   },
   "&.cm-focused .cm-selectionBackground, .cm-selectionBackground, ::selection": {
     backgroundColor: "var(--accent-soft)",
+  },
+
+  // 斜線命令的選單。預設是系統灰底，跟整體不搭。
+  ".cm-tooltip.cm-tooltip-autocomplete": {
+    border: "1px solid var(--line)",
+    borderRadius: "3px",
+    backgroundColor: "var(--surface)",
+    boxShadow: "0 12px 32px rgba(55, 53, 47, 0.14)",
+  },
+  ".cm-tooltip-autocomplete > ul": {
+    fontFamily: "var(--font-sans)",
+    fontSize: "12px",
+    maxHeight: "18em",
+  },
+  ".cm-tooltip-autocomplete > ul > li": {
+    display: "flex",
+    alignItems: "center",
+    gap: "0.5em",
+    padding: "5px 10px",
+    color: "var(--ink)",
+  },
+  ".cm-tooltip-autocomplete > ul > li[aria-selected]": {
+    backgroundColor: "var(--accent-soft)",
+    color: "var(--accent)",
+  },
+  ".cm-completionDetail": {
+    marginLeft: "auto",
+    color: "var(--ink-muted)",
+    fontFamily: "var(--font-mono)",
+    fontSize: "10px",
+    fontStyle: "normal",
+  },
+  // 選單左側的類型圖示對這個情境沒有意義，全部同一類
+  ".cm-completionIcon": {
+    display: "none",
   },
 });

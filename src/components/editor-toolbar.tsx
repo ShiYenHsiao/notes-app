@@ -2,6 +2,7 @@
 
 import {
   IconBold,
+  IconCallout,
   IconChecklist,
   IconCode,
   IconHeading,
@@ -73,6 +74,9 @@ export function EditorToolbar({
         onClick={() => api.current?.insertBlock("| 欄位 | 欄位 |\n| --- | --- |\n|  |  |")}
       >
         <IconTable />
+      </Button>
+      <Button title="重點區塊" onClick={() => api.current?.insertBlock("> [!NOTE]\n> \n")}>
+        <IconCallout />
       </Button>
     </div>
   );
