@@ -10,7 +10,12 @@ import { EditorState, Prec } from "@codemirror/state";
 import { basicSetup, EditorView } from "codemirror";
 import { keymap } from "@codemirror/view";
 
-import { classifyIndent, INDENT_UNIT } from "@/lib/indent-rules";
+import {
+  classifyIndent,
+  INDENT_UNIT,
+  isListPrefix,
+  needsBlankLineBeforeList,
+} from "@/lib/indent-rules";
 import { slashCommands } from "@/lib/slash-commands";
 
 /** 螢光筆的顏色代號。省略代表黃色，寫進 Markdown 時不加後綴。 */
@@ -130,6 +135,41 @@ export function MarkdownEditor({
             if (update.docChanged) {
               onChangeRef.current(update.state.doc.toString());
             }
+          }),
+
+          /*
+           * 手動打出清單標記時，如果上一行是普通段落就順手補一行空行。
+           *
+           * 補插與空白鍵本身放在同一個 transaction，Undo 才會一次退回去。
+           */
+          EditorView.inputHandler.of((view, from, to, text) => {
+            if (text !== " ") {
+              return false;
+            }
+
+            const line = view.state.doc.lineAt(from);
+            const typed = line.text.slice(0, from - line.from);
+
+            // 剛打完的正好是清單標記本身
+            if (!/^[ \t]*(?:[-*+]|\d+[.)])$/.test(typed)) {
+              return false;
+            }
+
+            const previous = line.number > 1 ? view.state.doc.line(line.number - 1).text : null;
+            if (!needsBlankLineBeforeList(previous)) {
+              return false;
+            }
+
+            view.dispatch({
+              changes: [
+                { from: line.from, insert: "\n" },
+                { from, to, insert: " " },
+              ],
+              // 新文件裡游標往後挪兩格：一個換行、一個空白
+              selection: { anchor: to + 2 },
+              userEvent: "input.type",
+            });
+            return true;
           }),
 
           EditorView.domEventHandlers({
@@ -337,7 +377,21 @@ function toggleLinePrefix(view: EditorView, prefix: string): boolean {
     }
   }
 
-  const changes = [];
+  const changes: { from: number; to?: number; insert: string }[] = [];
+
+  /*
+   * 把普通段落變成清單時補一行空行。
+   * 跟前綴的改動放在同一個 transaction，Undo 才會一次退回去。
+   * 插入點與下面第一筆改動相鄰而不重疊，所以必須排在前面。
+   */
+  if (!allPrefixed && isListPrefix(prefix)) {
+    const previous =
+      firstLine.number > 1 ? view.state.doc.line(firstLine.number - 1).text : null;
+    if (needsBlankLineBeforeList(previous)) {
+      changes.push({ from: firstLine.from, insert: "\n" });
+    }
+  }
+
   for (let n = firstLine.number; n <= lastLine.number; n += 1) {
     const line = view.state.doc.line(n);
     const existing = line.text.match(LINE_PREFIX_PATTERN)?.[0] ?? "";

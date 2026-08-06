@@ -15,7 +15,11 @@ import remarkParse from "remark-parse";
 import remarkGfm from "remark-gfm";
 import remarkRehype from "remark-rehype";
 
-import { classifyIndent } from "../src/lib/indent-rules.ts";
+import {
+  classifyIndent,
+  isListPrefix,
+  needsBlankLineBeforeList,
+} from "../src/lib/indent-rules.ts";
 import { rehypeHighlight } from "../src/lib/rehype-highlight.ts";
 import { rehypeCallout } from "../src/lib/rehype-callout.ts";
 
@@ -131,4 +135,74 @@ test("tab 字元照 CommonMark 當四格算", () => {
 
 test("空行可以自由縮排", () => {
   assert.equal(classifyIndent({ lineText: "    ", multiLine: false }), "indent");
+});
+
+// ---------------------------------------------------------------- 清單與段落的銜接
+
+test("空的清單項目無法打斷段落（這就是預覽看起來沒生效的原因）", async () => {
+  const tree = await render("一般段落\n1.");
+  assert.doesNotMatch(outline(tree), /<ol>/);
+});
+
+test("有內容的 1. 可以打斷段落", async () => {
+  const tree = await render("一般段落\n1. 甲");
+  assert.match(outline(tree), /<ol>/);
+});
+
+test("有序清單非 1 開頭時無法打斷段落", async () => {
+  const tree = await render("一般段落\n2. 甲");
+  assert.doesNotMatch(outline(tree), /<ol>/);
+});
+
+test("補上空行之後兩種限制都不再適用", async () => {
+  assert.match(outline(await render("一般段落\n\n1. 甲")), /<ol>/);
+  assert.match(outline(await render("一般段落\n\n2. 甲")), /<ol>/);
+  assert.match(outline(await render("一般段落\n\n1.")), /<ol>/);
+});
+
+test("項目清單與待辦清單本來就能打斷段落", async () => {
+  assert.match(outline(await render("一般段落\n- 甲")), /<ul>/);
+  assert.match(outline(await render("一般段落\n- [ ] 甲")), /<ul>/);
+});
+
+test("巢狀清單正確渲染", async () => {
+  const html = outline(await render("- 甲\n  - 乙"));
+  assert.match(html, /<ul>.*<ul>/s);
+});
+
+test("待辦清單渲染成 checkbox", async () => {
+  assert.match(outline(await render("- [ ] 甲\n- [x] 乙")), /<input>/);
+});
+
+// ---------------------------------------------------------------- 補空行的判斷
+
+test("普通段落後面起清單需要補空行", () => {
+  assert.equal(needsBlankLineBeforeList("一般段落"), true);
+});
+
+test("空行、清單、引用、標題後面不需要補", () => {
+  assert.equal(needsBlankLineBeforeList(""), false);
+  assert.equal(needsBlankLineBeforeList("   "), false);
+  assert.equal(needsBlankLineBeforeList("- 甲"), false);
+  assert.equal(needsBlankLineBeforeList("1. 甲"), false);
+  assert.equal(needsBlankLineBeforeList("- [ ] 甲"), false);
+  assert.equal(needsBlankLineBeforeList("> 引用"), false);
+  assert.equal(needsBlankLineBeforeList("## 標題"), false);
+  assert.equal(needsBlankLineBeforeList("```"), false);
+  assert.equal(needsBlankLineBeforeList("| 欄 | 位 |"), false);
+});
+
+test("文件第一行不需要補", () => {
+  assert.equal(needsBlankLineBeforeList(null), false);
+});
+
+// ---------------------------------------------------------------- 工具列前綴
+
+test("清單前綴互斥，不會疊成 1. - 內容", () => {
+  assert.equal(isListPrefix("- "), true);
+  assert.equal(isListPrefix("1. "), true);
+  assert.equal(isListPrefix("- [ ] "), true);
+  // 標題與引用不是清單，不該觸發補空行
+  assert.equal(isListPrefix("# "), false);
+  assert.equal(isListPrefix("> "), false);
 });
