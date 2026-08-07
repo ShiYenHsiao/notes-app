@@ -14,6 +14,8 @@ export type NoteSummary = {
   updated_at: string;
   /** 已經在伺服器端格式化好的時間字串。 */
   updated_label: string;
+  /** 標籤名稱。列表只顯示名字，不需要 id。 */
+  tags: string[];
 };
 
 export type NoteDetail = {
@@ -47,6 +49,18 @@ export function normalizeTagName(input: string): string {
 
 /** 對齊資料表上的 check constraint。 */
 export const TAG_NAME_MAX_LENGTH = 50;
+
+/**
+ * 從內文推導標題，跟資料庫的 generated column 同一套規則：
+ * 取第一行、去掉開頭的 `#`、去掉前後空白，空的話回傳 null。
+ *
+ * 資料庫那份是存檔後才更新的，編輯時要即時顯示標題就得在前端再算一次。
+ * 兩邊的規則必須一致，否則存檔前後標題會跳動 —— `tests/workspace.test.mjs` 有對應測試。
+ */
+export function titleFromContent(content: string): string | null {
+  const firstLine = content.split("\n", 1)[0] ?? "";
+  return firstLine.replace(/^#{1,6}[ \t]*/, "").trim() || null;
+}
 
 /** 列表與編輯區共用的標題顯示規則：沒有標題就退回摘要，再沒有就顯示「無標題」。 */
 export function displayTitle(note: { title: string | null; excerpt?: string }): string {

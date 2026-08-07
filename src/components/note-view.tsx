@@ -5,15 +5,17 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { togglePin, trashNote } from "@/lib/actions/notes";
-import type { NoteDetail, TagSummary } from "@/lib/note-display";
+import { titleFromContent, type NoteDetail, type TagSummary } from "@/lib/note-display";
 import { useAutosave } from "@/lib/use-autosave";
 import { useImageUpload } from "@/lib/use-image-upload";
+import { useReportSaveStatus } from "@/lib/workspace-status";
 
 import { EditorToolbar } from "./editor-toolbar";
 import { IconPin, IconTrash } from "./icons";
 import type { EditorApi } from "./markdown-editor";
 import { MarkdownPreview } from "./markdown-preview";
 import { TagBar } from "./tag-bar";
+import { Tooltip } from "./tooltip";
 import { VersionHistory } from "./version-history";
 
 // CodeMirror 只在桌機載入。手機是唯讀的，沒必要讓它下載整包編輯器。
@@ -40,6 +42,9 @@ export function NoteView({
   const save = useAutosave(note.id, content, note.updated_at, latestContent);
   const isDesktop = useIsDesktop();
 
+  // 分頁列靠這個顯示「還沒存」的點
+  useReportSaveStatus(note.id, save.status);
+
   const editorApi = useRef<EditorApi | null>(null);
   const filePicker = useRef<HTMLInputElement>(null);
   const [uploadError, setUploadError] = useState<string>();
@@ -55,29 +60,6 @@ export function NoteView({
   });
 
   const [viewMode, setViewMode] = useState<ViewMode>("split");
-
-  /*
-   * 一般段落的 Tab 被擋下來時的提示。
-   * 只存在於介面上，不會寫進筆記內容，也不會被 Markdown 渲染。
-   */
-  const [indentHint, setIndentHint] = useState(false);
-  const indentHintTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const showIndentHint = useCallback(() => {
-    setIndentHint(true);
-    if (indentHintTimer.current !== null) {
-      clearTimeout(indentHintTimer.current);
-    }
-    indentHintTimer.current = setTimeout(() => setIndentHint(false), 6000);
-  }, []);
-
-  useEffect(() => {
-    return () => {
-      if (indentHintTimer.current !== null) {
-        clearTimeout(indentHintTimer.current);
-      }
-    };
-  }, []);
 
   // ⌘1 / ⌘2 / ⌘3 切換三種檢視。這些鍵瀏覽器沒有佔用，攔得下來。
   useEffect(() => {
@@ -99,43 +81,68 @@ export function NoteView({
   const showEditor = isDesktop && viewMode !== "preview";
   const showPreview = !isDesktop || viewMode !== "editor";
 
+  // 標題即時從內文推導，跟資料庫的 generated column 同一套規則
+  const title = titleFromContent(content);
+
   return (
     <div className="flex h-full flex-col">
-      <header className="flex items-center gap-3 border-b border-line px-4 py-2 text-sm">
-        <Link href="/" className="text-ink-muted hover:text-accent md:hidden">
-          ← 返回
-        </Link>
+      {/*
+        筆記的 metadata 區：標題與標籤在內容上方，用一條分隔線跟內容隔開。
+        標籤是**資料庫欄位而不是內文的一部分**，所以它屬於這裡，不屬於編輯區裡面。
+      */}
+      <header className="shrink-0 border-b border-line px-5 pt-3 pb-2.5">
+        <div className="flex items-center gap-3">
+          <Link href="/" className="shrink-0 text-sm text-ink-muted hover:text-accent md:hidden">
+            ← 返回
+          </Link>
 
-        <div className="ml-auto flex items-center gap-0.5">
-          <VersionHistory noteId={note.id} />
+          <h1
+            className={`min-w-0 flex-1 truncate text-lg font-semibold ${
+              title ? "" : "text-ink-muted"
+            }`}
+            style={{ fontFamily: "var(--font-serif)" }}
+          >
+            {title ?? "無標題"}
+          </h1>
 
-          <form action={togglePin.bind(null, note.id, !note.pinned)}>
-            <button
-              type="submit"
-              title={note.pinned ? "取消釘選" : "釘選到列表最上面"}
-              aria-label={note.pinned ? "取消釘選" : "釘選"}
-              aria-pressed={note.pinned}
-              className={`flex size-7 items-center justify-center rounded-md transition-colors hover:bg-accent-soft ${
-                note.pinned ? "text-accent" : "text-ink-muted hover:text-accent"
-              }`}
-            >
-              <IconPin />
-            </button>
-          </form>
+          <div className="flex shrink-0 items-center gap-0.5">
+            <VersionHistory noteId={note.id} />
 
-          {/* 刪除跟其他操作隔開，減少手滑的機會 */}
-          <span className="mx-1.5 h-4 w-px bg-line" aria-hidden />
+            <Tooltip label={note.pinned ? "取消釘選" : "釘選到列表最上面"}>
+              <form action={togglePin.bind(null, note.id, !note.pinned)}>
+                <button
+                  type="submit"
+                  aria-label={note.pinned ? "取消釘選" : "釘選"}
+                  aria-pressed={note.pinned}
+                  className={`flex size-8 items-center justify-center rounded-md transition-colors duration-150 hover:bg-accent-soft ${
+                    note.pinned ? "text-gold" : "text-ink-muted hover:text-accent"
+                  }`}
+                >
+                  <IconPin />
+                </button>
+              </form>
+            </Tooltip>
 
-          <form action={trashNote.bind(null, note.id)}>
-            <button
-              type="submit"
-              title="丟進垃圾桶（可還原）"
-              aria-label="刪除"
-              className="flex size-7 items-center justify-center rounded-md text-ink-muted transition-colors hover:bg-danger-soft hover:text-danger"
-            >
-              <IconTrash />
-            </button>
-          </form>
+            {/* 刪除跟其他操作隔開，減少手滑的機會 */}
+            <span className="mx-1.5 h-4 w-px bg-line" aria-hidden />
+
+            {/* 刪的是正在看的這篇，所以刪完要離開它（goHome = true） */}
+            <Tooltip label="丟進垃圾桶" shortcut="可還原">
+              <form action={trashNote.bind(null, note.id, true)}>
+                <button
+                  type="submit"
+                  aria-label="刪除"
+                  className="flex size-8 items-center justify-center rounded-md text-ink-muted transition-colors duration-150 hover:bg-danger-soft hover:text-danger"
+                >
+                  <IconTrash />
+                </button>
+              </form>
+            </Tooltip>
+          </div>
+        </div>
+
+        <div className="mt-1.5">
+          <TagBar noteId={note.id} initialTags={noteTags} allTags={allTags} />
         </div>
       </header>
 
@@ -155,26 +162,6 @@ export function NoteView({
 
       {isDesktop ? (
         <EditorToolbar api={editorApi} onOpenImagePicker={() => filePicker.current?.click()} />
-      ) : null}
-
-      {indentHint ? (
-        <div
-          role="status"
-          className="flex items-start gap-3 border-b border-line bg-accent-soft px-4 py-2 text-[12px]"
-        >
-          <span className="flex-1">
-            一般段落再縮一層就會滿四個空白，Markdown 會把整行當成程式碼區塊，
-            <code className="mx-0.5">==螢光標記==</code>
-            也會失效，所以這次沒有縮。需要層次請用清單或引用；要寫程式碼請用{" "}
-            <code className="mx-0.5">```</code> 圍欄式區塊。
-          </span>
-          <button
-            onClick={() => setIndentHint(false)}
-            className="shrink-0 underline underline-offset-4"
-          >
-            知道了
-          </button>
-        </div>
       ) : null}
 
       {uploadError ? (
@@ -208,7 +195,6 @@ export function NoteView({
               onChange={setContent}
               onFiles={uploadFiles}
               onSaveRequest={save.saveNow}
-              onIndentBlocked={showIndentHint}
               apiRef={editorApi}
             />
           </div>
@@ -216,7 +202,7 @@ export function NoteView({
 
         {showPreview ? (
           <div
-            className={`min-w-0 overflow-y-auto bg-paper px-7 py-6 ${
+            className={`min-w-0 overflow-y-auto bg-paper px-8 py-8 ${
               showEditor ? "flex-1 basis-1/2" : "w-full"
             }`}
           >
@@ -242,10 +228,7 @@ export function NoteView({
         }}
       />
 
-      <footer className="flex items-center gap-4 border-t border-line px-4 py-2 text-xs text-ink-muted">
-        <div className="min-w-0 flex-1">
-          <TagBar noteId={note.id} initialTags={noteTags} allTags={allTags} />
-        </div>
+      <footer className="flex shrink-0 items-center justify-end gap-4 border-t border-line px-5 py-1.5 text-xs text-ink-muted">
         <SaveIndicator status={save.status} />
       </footer>
     </div>

@@ -153,13 +153,19 @@ function yamlString(value: string): string {
  * 檔名用標題，但要能安全落地到各種檔案系統。
  * 中文保留 —— macOS 與 Linux 都處理得好，強行轉拼音反而看不懂。
  */
-function uniqueFilename(title: string | null, id: string, used: Set<string>): string {
+export function markdownFilename(title: string | null): string {
   const base =
     (title ?? "")
       .replace(/[/\\?%*:|"<>.]/g, "") // 檔案系統的保留字元
       .replace(/\s+/g, " ")
       .trim()
       .slice(0, 60) || "無標題";
+
+  return `${base}.md`;
+}
+
+function uniqueFilename(title: string | null, id: string, used: Set<string>): string {
+  const base = markdownFilename(title).replace(/\.md$/, "");
 
   let candidate = `${base}.md`;
   if (used.has(candidate)) {

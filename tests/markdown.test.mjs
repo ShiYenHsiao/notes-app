@@ -16,10 +16,17 @@ import remarkGfm from "remark-gfm";
 import remarkRehype from "remark-rehype";
 
 import {
-  classifyIndent,
+  blankLineColumns,
+  guideCount,
+  indentUnitFor,
+  INDENT_UNIT,
   isListPrefix,
+  leadingColumns,
   needsBlankLineBeforeList,
+  outdentLength,
+  TEXT_INDENT_UNIT,
 } from "../src/lib/indent-rules.ts";
+import { calloutBlock } from "../src/lib/callouts.ts";
 import { rehypeHighlight } from "../src/lib/rehype-highlight.ts";
 import { rehypeCallout } from "../src/lib/rehype-callout.ts";
 
@@ -107,34 +114,64 @@ test("普通引用不會被誤判成重點區塊", async () => {
   assert.match(outline(tree), /<blockquote>/);
 });
 
+test("法律筆記的四種備註框都有中文標籤", async () => {
+  assert.match(outline(await render("> [!KEY]\n> 內容")), /<div>重點<\/div>/);
+  assert.match(outline(await render("> [!PRACTICE]\n> 內容")), /<div>實務見解<\/div>/);
+  assert.match(outline(await render("> [!PITFALL]\n> 內容")), /<div>易錯提醒<\/div>/);
+  assert.match(outline(await render("> [!INSIGHT]\n> 內容")), /<div>自我理解<\/div>/);
+});
+
+test("既有筆記用的 GitHub 類型照樣認得", async () => {
+  // 不能為了新類型把舊筆記弄壞
+  assert.match(outline(await render("> [!NOTE]\n> 內容")), /<div>提示<\/div>/);
+  assert.match(outline(await render("> [!CAUTION]\n> 內容")), /<div>警告<\/div>/);
+});
+
+test("不認得的類型維持成引用，標記文字留著", async () => {
+  const html = outline(await render("> [!UNKNOWN]\n> 內容"));
+  assert.match(html, /<blockquote>/);
+  assert.match(html, /\[!UNKNOWN\]/);
+});
+
+test("工具列插入的備註框渲染得出來", async () => {
+  // calloutBlock 產生的形狀：標記一行、內容一行
+  const html = outline(await render(`${calloutBlock("KEY")}構成要件`));
+  assert.match(html, /<div>重點<\/div>/);
+  assert.match(html, /構成要件/);
+});
+
 // ---------------------------------------------------------------- 縮排規則
 
-test("清單項目按 Tab 會照標準縮排", () => {
-  assert.equal(classifyIndent({ lineText: "- 甲", multiLine: false }), "indent");
-  assert.equal(classifyIndent({ lineText: "  - 已經縮過一層", multiLine: false }), "indent");
-  assert.equal(classifyIndent({ lineText: "1. 有序清單", multiLine: false }), "indent");
-  assert.equal(classifyIndent({ lineText: "- [ ] 待辦", multiLine: false }), "indent");
+test("清單與空行用半形兩格 —— 那是 Markdown 語法的一部分", () => {
+  assert.equal(indentUnitFor("- 甲"), INDENT_UNIT);
+  assert.equal(indentUnitFor("  - 已經縮過一層"), INDENT_UNIT);
+  assert.equal(indentUnitFor("1. 有序清單"), INDENT_UNIT);
+  assert.equal(indentUnitFor("- [ ] 待辦"), INDENT_UNIT);
+  // 空行接下來最常打的就是清單標記，全形空格開頭的話 CommonMark 不當它是清單
+  assert.equal(indentUnitFor(""), INDENT_UNIT);
+  assert.equal(indentUnitFor("    "), INDENT_UNIT);
 });
 
-test("跨行選取一律正常縮排", () => {
-  assert.equal(classifyIndent({ lineText: "    已經很深的一般段落", multiLine: true }), "indent");
+test("其他行用全形空格 —— 半形的在預覽會被吃掉", () => {
+  assert.equal(indentUnitFor("一般段落"), TEXT_INDENT_UNIT);
+  assert.equal(indentUnitFor("一、意義"), TEXT_INDENT_UNIT);
+  assert.equal(indentUnitFor("　（一）主觀"), TEXT_INDENT_UNIT);
+  assert.equal(indentUnitFor("> 引用"), TEXT_INDENT_UNIT);
 });
 
-test("一般段落第一次 Tab 可以縮", () => {
-  assert.equal(classifyIndent({ lineText: "一般段落", multiLine: false }), "indent");
+test("Shift-Tab 一次退一層", () => {
+  assert.equal(outdentLength("　一、意義"), 1);
+  // 連續兩個全形空格只退一個
+  assert.equal(outdentLength("　　（一）主觀"), 1);
+  assert.equal(outdentLength("  - 甲"), 2);
+  // 落單的一格或 tab 也要退得掉
+  assert.equal(outdentLength(" 甲"), 1);
+  assert.equal(outdentLength("\t甲"), 1);
 });
 
-test("一般段落縮到要滿四格時會被擋下來", () => {
-  // 已經兩格，再縮一層就是四格 → 會變成程式碼區塊
-  assert.equal(classifyIndent({ lineText: "  一般段落", multiLine: false }), "blocked");
-});
-
-test("tab 字元照 CommonMark 當四格算", () => {
-  assert.equal(classifyIndent({ lineText: "\t一般段落", multiLine: false }), "blocked");
-});
-
-test("空行可以自由縮排", () => {
-  assert.equal(classifyIndent({ lineText: "    ", multiLine: false }), "indent");
+test("行首沒有縮排就不動", () => {
+  assert.equal(outdentLength("一般段落"), 0);
+  assert.equal(outdentLength(""), 0);
 });
 
 // ---------------------------------------------------------------- 清單與段落的銜接
@@ -194,6 +231,82 @@ test("空行、清單、引用、標題後面不需要補", () => {
 
 test("文件第一行不需要補", () => {
   assert.equal(needsBlankLineBeforeList(null), false);
+});
+
+// ---------------------------------------------------------------- 中文條列的分行
+
+test("中文條列不補硬換行的話會被接成同一段", async () => {
+  const html = outline(await render("一、意義\n二、要件"));
+  assert.doesNotMatch(html, /<br>/);
+});
+
+test("行尾兩個空白會渲染成硬換行", async () => {
+  const html = outline(await render("一、意義  \n二、要件"));
+  assert.match(html, /<br>/);
+});
+
+// ---------------------------------------------------------------- 縮排與預覽
+
+test("半形空白的縮排在預覽會被吃掉", async () => {
+  // 這就是 Tab 不能用半形空白縮中文條列的原因
+  const html = outline(await render("一、意義  \n  （一）主觀"));
+  assert.match(html, /（一）主觀/);
+  assert.doesNotMatch(html, / {2}（一）主觀/);
+});
+
+test("tab 縮排同樣會被吃掉", async () => {
+  const html = outline(await render("一、意義  \n\t（一）主觀"));
+  assert.doesNotMatch(html, /\t（一）主觀/);
+});
+
+test("全形空格的縮排會原封不動留到預覽", async () => {
+  // U+3000 對 Markdown 與 CSS 都是普通字元，所以編輯區與預覽長得一樣
+  const html = outline(await render("一、意義  \n　　（一）主觀"));
+  assert.match(html, /　　（一）主觀/);
+});
+
+test("全形空格不會變成程式碼區塊", async () => {
+  // 半形四格會，全形四個不會 —— indented code block 只認半形空白與 tab
+  assert.match(outline(await render("　　　　一般段落")), /<p>/);
+  assert.doesNotMatch(outline(await render("　　　　一般段落")), /<pre>/);
+});
+
+test("清單的縮排照樣是巢狀語法", async () => {
+  assert.match(outline(await render("- 項目\n  - 子項目")), /<ul>.*<ul>/s);
+});
+
+// ---------------------------------------------------------------- 縮排參考線
+
+test("行首空白換算成欄數", () => {
+  assert.equal(leadingColumns("沒有縮排"), 0);
+  assert.equal(leadingColumns("  縮一層"), 2);
+  assert.equal(leadingColumns("    縮兩層"), 4);
+  // tab 照 CommonMark 當四欄，全形空格在等寬字體裡佔兩欄
+  assert.equal(leadingColumns("\t一層"), 4);
+  assert.equal(leadingColumns("　全形"), 2);
+});
+
+test("整行都是空白的話沒有自己的縮排", () => {
+  assert.equal(leadingColumns(""), null);
+  assert.equal(leadingColumns("    "), null);
+});
+
+test("每兩欄一條線", () => {
+  assert.equal(guideCount(0), 0);
+  assert.equal(guideCount(1), 0);
+  assert.equal(guideCount(2), 1);
+  assert.equal(guideCount(5), 2);
+});
+
+test("空行跟前後最近的非空行借縮排，取比較淺的", () => {
+  assert.equal(blankLineColumns(4, 2), 2);
+  assert.equal(blankLineColumns(2, 4), 2);
+  // 清單後面接回最左邊的段落時，線要停住
+  assert.equal(blankLineColumns(4, 0), 0);
+  // 只有一邊有得借
+  assert.equal(blankLineColumns(null, 4), 4);
+  assert.equal(blankLineColumns(4, null), 4);
+  assert.equal(blankLineColumns(null, null), 0);
 });
 
 // ---------------------------------------------------------------- 工具列前綴

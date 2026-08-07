@@ -13,9 +13,24 @@ import type { Element, ElementContent, Root } from "hast";
  * 要接就得走完全不同的處理路徑。目前沒有這個需求。
  */
 
-type CalloutKind = "note" | "tip" | "important" | "warning" | "caution";
+type CalloutKind =
+  /** 法律筆記自己的四種，工具列只給這四個。 */
+  | "key"
+  | "practice"
+  | "pitfall"
+  | "insight"
+  /** GitHub 的五種。既有筆記還在用，而且從 GitHub／Obsidian 貼過來的也是這些。 */
+  | "note"
+  | "tip"
+  | "important"
+  | "warning"
+  | "caution";
 
 const LABELS: Record<CalloutKind, string> = {
+  key: "重點",
+  practice: "實務見解",
+  pitfall: "易錯提醒",
+  insight: "自我理解",
   note: "提示",
   tip: "訣竅",
   important: "重要",
@@ -23,7 +38,14 @@ const LABELS: Record<CalloutKind, string> = {
   caution: "警告",
 };
 
-const GITHUB_MARKER = /^\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\]\s*/;
+/*
+ * 四個法律用的類型是自訂的，GitHub 不認得 —— 那邊會退回成一般引用，
+ * 標記那一行會以文字形式留著。這是刻意的取捨：`[!PRACTICE]` 這種字面讀得懂，
+ * 而且底層仍是 blockquote，不會變成亂碼。若改用 `[!實務見解]` 這種中文標記，
+ * 匯出到其他工具就更難讀。
+ */
+const GITHUB_MARKER =
+  /^\[!(KEY|PRACTICE|PITFALL|INSIGHT|NOTE|TIP|IMPORTANT|WARNING|CAUTION)\]\s*/;
 
 export function rehypeCallout() {
   return (tree: Root) => {

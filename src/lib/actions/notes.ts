@@ -4,7 +4,8 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { requireUser } from "@/lib/auth";
-import { listNotes, type NoteSummary } from "@/lib/notes";
+import { markdownFilename } from "@/lib/export";
+import { getNote, listNotes, type NoteSummary } from "@/lib/notes";
 import { createClient } from "@/lib/supabase/server";
 import { isSnapshotDue, writeSnapshot } from "@/lib/versions";
 
@@ -86,8 +87,13 @@ export async function saveNote(
   return { status: "saved", updatedAt: data.updated_at };
 }
 
-/** 丟進垃圾桶（軟刪除）。 */
-export async function trashNote(id: string) {
+/**
+ * 丟進垃圾桶（軟刪除）。
+ *
+ * `goHome` 是給編輯區用的：刪掉正在看的那篇當然要離開它。從列表的選單刪別篇時
+ * 傳 false —— 手上正在編輯的筆記不該因為刪了另一篇而被換掉。
+ */
+export async function trashNote(id: string, goHome = true) {
   await requireUser();
   const supabase = await createClient();
 
@@ -101,7 +107,27 @@ export async function trashNote(id: string) {
   }
 
   revalidatePath("/", "layout");
-  redirect("/");
+
+  if (goHome) {
+    redirect("/");
+  }
+}
+
+/**
+ * 單篇筆記的 Markdown 原文。列表選單的「複製」與「匯出」用。
+ *
+ * 複製與匯出都在瀏覽器端完成（clipboard 與 Blob 下載），這裡只負責把內容送過去 ——
+ * 列表為了輕量本來就不帶完整內文。
+ */
+export async function noteMarkdown(id: string) {
+  await requireUser();
+
+  const note = await getNote(id);
+  if (!note) {
+    return null;
+  }
+
+  return { filename: markdownFilename(note.title), content: note.content };
 }
 
 /** 從垃圾桶還原。 */
@@ -136,6 +162,7 @@ export async function togglePin(id: string, pinned: boolean) {
 export async function filterNotes(options: {
   query?: string;
   tagId?: string;
+  pinned?: boolean;
 }): Promise<NoteSummary[]> {
   await requireUser();
   return listNotes(options);

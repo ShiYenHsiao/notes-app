@@ -2,21 +2,37 @@
 
 import { useEffect, useRef } from "react";
 import { markdown } from "@codemirror/lang-markdown";
+import { redo, undo } from "@codemirror/commands";
 import { languages } from "@codemirror/language-data";
-import { indentLess, indentMore } from "@codemirror/commands";
 import { autocompletion } from "@codemirror/autocomplete";
 import { indentUnit } from "@codemirror/language";
-import { EditorState, Prec } from "@codemirror/state";
+import { EditorState, Prec, RangeSetBuilder, type Text } from "@codemirror/state";
 import { basicSetup, EditorView } from "codemirror";
-import { keymap } from "@codemirror/view";
-
-import { nextChineseListMarker, parseChineseListMarker } from "@/lib/chinese-list";
 import {
-  classifyIndent,
+  Decoration,
+  keymap,
+  ViewPlugin,
+  type DecorationSet,
+  type ViewUpdate,
+} from "@codemirror/view";
+
+import {
+  hardBreakSuffix,
+  nextChineseListMarker,
+  parseChineseListMarker,
+} from "@/lib/chinese-list";
+import {
+  blankLineColumns,
+  GUIDE_STEP,
+  guideCount,
+  indentUnitFor,
   INDENT_UNIT,
   isListPrefix,
+  leadingColumns,
   needsBlankLineBeforeList,
+  outdentLength,
 } from "@/lib/indent-rules";
+import { calloutBlock, DEFAULT_CALLOUT } from "@/lib/callouts";
 import { slashCommands } from "@/lib/slash-commands";
 
 /** 螢光筆的顏色代號。省略代表黃色，寫進 Markdown 時不加後綴。 */
@@ -37,6 +53,9 @@ export type EditorApi = {
   toggleLinePrefix(prefix: string): void;
   /** 在游標所在行的下方插入一個區塊。 */
   insertBlock(text: string): void;
+  /** 復原／重做。工具列用，鍵盤的 ⌘Z 由 CodeMirror 自己處理。 */
+  undo(): void;
+  redo(): void;
   focus(): void;
 };
 
@@ -45,7 +64,6 @@ export function MarkdownEditor({
   onChange,
   onFiles,
   onSaveRequest,
-  onIndentBlocked,
   apiRef,
 }: {
   initialValue: string;
@@ -54,8 +72,6 @@ export function MarkdownEditor({
   onFiles?: (files: File[]) => void;
   /** 按下 Cmd+S。平常已自動存檔，這是求心安用的。 */
   onSaveRequest?: () => void;
-  /** 一般段落的 Tab 被擋下來時通知外層顯示提示。 */
-  onIndentBlocked?: () => void;
   apiRef?: React.RefObject<EditorApi | null>;
 }) {
   const host = useRef<HTMLDivElement>(null);
@@ -64,13 +80,11 @@ export function MarkdownEditor({
   const onChangeRef = useRef(onChange);
   const onFilesRef = useRef(onFiles);
   const onSaveRef = useRef(onSaveRequest);
-  const onIndentBlockedRef = useRef(onIndentBlocked);
   useEffect(() => {
     onChangeRef.current = onChange;
     onFilesRef.current = onFiles;
     onSaveRef.current = onSaveRequest;
-    onIndentBlockedRef.current = onIndentBlocked;
-  }, [onChange, onFiles, onSaveRequest, onIndentBlocked]);
+  }, [onChange, onFiles, onSaveRequest]);
 
   useEffect(() => {
     const element = host.current;
@@ -91,6 +105,8 @@ export function MarkdownEditor({
 
           // 巢狀清單一層兩格。四格在中文行裡縮得太兇，一層就吃掉半行。
           indentUnit.of(INDENT_UNIT),
+
+          indentGuides,
 
           /*
            * 斜線命令。
@@ -123,16 +139,14 @@ export function MarkdownEditor({
                * 內建了替代路徑：按 Escape 之後兩秒內按 Tab 會移出焦點而不是縮排。
                * 所以這裡不需要自己處理。
                */
-              {
-                key: "Tab",
-                run: (view) => smartIndent(view, () => onIndentBlockedRef.current?.()),
-                shift: indentLess,
-              },
+              { key: "Tab", run: smartIndent, shift: smartOutdent },
 
               { key: "Mod-b", run: (view) => wrapSelection(view, "**") },
               { key: "Mod-i", run: (view) => wrapSelection(view, "*") },
               { key: "Mod-k", run: (view) => insertLink(view) },
               { key: "Mod-Shift-c", run: (view) => insertBlock(view, "```\n\n```") },
+              // 備註／重點框。法律筆記標記考點的頻率遠高於寫程式碼，所以它有快捷鍵。
+              { key: "Mod-Shift-m", run: (view) => insertBlock(view, calloutBlock(DEFAULT_CALLOUT)) },
               { key: "Mod-Shift-h", run: (view) => applyHighlight(view) },
               {
                 key: "Mod-s",
@@ -252,6 +266,14 @@ export function MarkdownEditor({
         insertBlock(text) {
           insertBlock(view, text);
         },
+        undo() {
+          undo(view);
+          view.focus();
+        },
+        redo() {
+          redo(view);
+          view.focus();
+        },
         focus() {
           view.focus();
         },
@@ -316,7 +338,8 @@ function continueChineseList(view: EditorView): boolean {
     return false; // 超出支援範圍就當作一般換行
   }
 
-  const insert = `\n${next}`;
+  // 補上硬換行，否則預覽會把這兩行接成同一段。理由見 hardBreakSuffix。
+  const insert = `${hardBreakSuffix(line.text)}\n${next}`;
   view.dispatch({
     changes: { from: range.head, insert },
     selection: { anchor: range.head + insert.length },
@@ -325,27 +348,65 @@ function continueChineseList(view: EditorView): boolean {
   return true;
 }
 
-/**
- * Tab 的行為。判斷規則在 lib/indent-rules.ts，這裡只負責接上 CodeMirror。
- * 真的要寫程式碼請用 ``` 圍欄式區塊，那個完全不受影響。
- */
-function smartIndent(view: EditorView, onBlocked: () => void): boolean {
-  const { state } = view;
-  const range = state.selection.main;
+/** 選取範圍（含多游標）碰到的每一行，由上往下、不重複。 */
+function selectedLines(state: EditorState): number[] {
+  const numbers = new Set<number>();
 
-  const decision = classifyIndent({
-    lineText: state.doc.lineAt(range.head).text,
-    multiLine:
-      !range.empty &&
-      state.doc.lineAt(range.from).number !== state.doc.lineAt(range.to).number,
-  });
-
-  if (decision === "blocked") {
-    onBlocked();
-    return true; // 攔下來，不要讓它靜默變成程式碼區塊
+  for (const range of state.selection.ranges) {
+    const first = state.doc.lineAt(range.from).number;
+    const last = state.doc.lineAt(range.to).number;
+    for (let n = first; n <= last; n += 1) {
+      numbers.add(n);
+    }
   }
 
-  return indentMore(view);
+  return [...numbers].sort((a, b) => a - b);
+}
+
+/**
+ * Tab 與 Shift-Tab。
+ *
+ * 不用 CodeMirror 的 indentMore／indentLess，因為縮排單位要看行的種類 ——
+ * 清單是半形兩格（語法），其他行是全形空格（內容，預覽才看得到）。
+ * 判斷規則在 lib/indent-rules.ts，這裡只負責接上 CodeMirror。
+ */
+function smartIndent(view: EditorView): boolean {
+  const { state } = view;
+
+  const changes = state.changes(
+    selectedLines(state).map((n) => {
+      const line = state.doc.line(n);
+      return { from: line.from, insert: indentUnitFor(line.text) };
+    }),
+  );
+
+  view.dispatch({
+    changes,
+    // assoc 1：游標本來就在行首時，縮完要停在縮排的後面而不是前面
+    selection: state.selection.map(changes, 1),
+    userEvent: "input.indent",
+  });
+  return true;
+}
+
+function smartOutdent(view: EditorView): boolean {
+  const { state } = view;
+  const changes: { from: number; to: number }[] = [];
+
+  for (const n of selectedLines(state)) {
+    const line = state.doc.line(n);
+    const length = outdentLength(line.text);
+    if (length > 0) {
+      changes.push({ from: line.from, to: line.from + length });
+    }
+  }
+
+  if (changes.length === 0) {
+    return false; // 沒有縮排可退，把 Tab 交還給其他 keymap
+  }
+
+  view.dispatch({ changes, userEvent: "delete.dedent" });
+  return true;
 }
 
 function wrapSelection(view: EditorView, before: string, after = before): boolean {
@@ -485,13 +546,120 @@ function insertBlock(view: EditorView, text: string): boolean {
   const insertAt = line.text.trim() ? line.to : line.from;
   const payload = line.text.trim() ? `\n${text}` : text;
 
+  /*
+   * 游標落在區塊中間那一行（程式碼區塊那種前後包夾的形狀），
+   * 沒有中間空行的就落在最後 —— 備註框的 `> ` 後面正好是要打字的地方。
+   */
+  const gap = payload.indexOf("\n\n");
+  const anchor = gap === -1 ? insertAt + payload.length : insertAt + gap + 2;
+
   view.dispatch({
     changes: { from: insertAt, to: insertAt, insert: payload },
-    // 游標落在區塊中間那一行
-    selection: { anchor: insertAt + payload.indexOf("\n\n") + 2 },
+    selection: { anchor },
   });
   view.focus();
   return true;
+}
+
+// ---------------------------------------------------------------- 縮排參考線
+// 欄位的算法在 lib/indent-guides.ts，這裡只負責量出字寬並畫上去。
+
+/** 視窗上緣的空行沒有「前一行」可看，往回找最多這麼多行就放棄。 */
+const BORROW_SCAN_LIMIT = 100;
+
+/**
+ * 縮排參考線。
+ *
+ * 用 line decoration 加一層 repeating-linear-gradient 背景，而不是插入元素 ——
+ * 背景不進入文件流，游標定位、選取範圍、複製出來的文字都不受影響。
+ * 一格的寬度要靠 defaultCharacterWidth 量（等寬字體才量得準，編輯區正好是），
+ * 所以字體或縮放變了（geometryChanged）就得重畫。
+ */
+const indentGuides = ViewPlugin.fromClass(
+  class {
+    decorations: DecorationSet;
+
+    constructor(view: EditorView) {
+      this.decorations = buildIndentGuides(view);
+    }
+
+    update(update: ViewUpdate) {
+      if (update.docChanged || update.viewportChanged || update.geometryChanged) {
+        this.decorations = buildIndentGuides(update.view);
+      }
+    }
+  },
+  { decorations: (plugin) => plugin.decorations },
+);
+
+function buildIndentGuides(view: EditorView): DecorationSet {
+  const { doc } = view.state;
+  const step = GUIDE_STEP * view.defaultCharacterWidth;
+  const builder = new RangeSetBuilder<Decoration>();
+
+  const draw = (lineNumber: number, columns: number) => {
+    const count = guideCount(columns);
+    if (count === 0) {
+      return;
+    }
+    const line = doc.line(lineNumber);
+    builder.add(
+      line.from,
+      line.from,
+      Decoration.line({
+        class: "cm-indentGuides",
+        attributes: { style: `--guides: ${count}; --guide-step: ${step}px` },
+      }),
+    );
+  };
+
+  for (const { from, to } of view.visibleRanges) {
+    const first = doc.lineAt(from).number;
+    const last = doc.lineAt(to).number;
+
+    let previous = columnsBefore(doc, first);
+    // 還沒決定縮排的空行，等下一個非空行出現才知道要借多少
+    let pending: number[] = [];
+
+    for (let n = first; n <= last; n += 1) {
+      const columns = leadingColumns(doc.line(n).text);
+
+      if (columns === null) {
+        pending.push(n);
+        continue;
+      }
+
+      const borrowed = blankLineColumns(previous, columns);
+      for (const blank of pending) {
+        draw(blank, borrowed);
+      }
+      pending = [];
+
+      draw(n, columns);
+      previous = columns;
+    }
+
+    // 視窗下緣還沒收尾的空行：沒有下一行可借，就跟著上面
+    for (const blank of pending) {
+      draw(blank, blankLineColumns(previous, null));
+    }
+  }
+
+  return builder.finish();
+}
+
+/** 往回找最近一個非空行的縮排。找不到（或找太遠）就回傳 null。 */
+function columnsBefore(doc: Text, lineNumber: number): number | null {
+  const limit = Math.max(1, lineNumber - BORROW_SCAN_LIMIT);
+
+  for (let n = lineNumber - 1; n >= limit; n -= 1) {
+    const columns = leadingColumns(doc.line(n).text);
+    if (columns !== null) {
+      return columns;
+    }
+  }
+
+  return null;
 }
 
 /** 讓 CodeMirror 用主題的 CSS 變數，深淺色才會跟著換。 */
@@ -505,13 +673,32 @@ const theme = EditorView.theme({
   "&.cm-focused": {
     outline: "none",
   },
+  /*
+   * 原始語法也是拿來讀的，所以跟預覽區一樣鎖行寬：大螢幕上整行拉到 1200px
+   * 只會讓眼睛從行尾找不回行首。留白給得比預覽區少一點 —— 這裡還要放行號。
+   */
   ".cm-content": {
+    maxWidth: "78ch",
+    margin: "0 auto",
     fontFamily: "var(--font-mono, ui-monospace), monospace",
-    padding: "1.5rem 0",
-    lineHeight: "1.7",
+    padding: "1.75rem 0",
+    lineHeight: "1.75",
   },
   ".cm-line": {
-    padding: "0 1.5rem",
+    padding: "0 1.25rem",
+  },
+
+  /*
+   * 縮排參考線。--guides（幾條）與 --guide-step（一層多寬）由 indentGuides 逐行掛上。
+   * background-origin/clip 設成 content-box，線才會從文字的起點算起而不是 padding 的邊緣。
+   */
+  ".cm-line.cm-indentGuides": {
+    backgroundImage:
+      "repeating-linear-gradient(to right, var(--line) 0 1px, transparent 1px var(--guide-step))",
+    backgroundSize: "calc(var(--guides) * var(--guide-step)) 100%",
+    backgroundRepeat: "no-repeat",
+    backgroundOrigin: "content-box",
+    backgroundClip: "content-box",
   },
   ".cm-gutters": {
     backgroundColor: "var(--surface)",

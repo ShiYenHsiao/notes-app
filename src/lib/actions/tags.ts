@@ -117,3 +117,94 @@ export async function suggestTags(): Promise<TagSummary[]> {
   await requireUser();
   return listTags();
 }
+
+/**
+ * 改標籤名。
+ *
+ * 改成一個已經存在的名字時**合併**成同一個標籤，而不是報錯：把舊標籤的關聯搬過去、
+ * 刪掉舊的。使用者打出同名的意思本來就是「這兩個是同一件事」，跳一個「名稱重複」
+ * 的錯誤只是把合併的工作丟回去給他手動做。
+ */
+export async function renameTag(tagId: string, rawName: string) {
+  await requireUser();
+  const name = normalizeTagName(rawName);
+
+  if (!name) {
+    return;
+  }
+
+  const supabase = await createClient();
+
+  const { data: duplicate, error: lookupError } = await supabase
+    .from("tags")
+    .select("id")
+    .eq("name", name)
+    .maybeSingle();
+
+  if (lookupError) {
+    throw new Error(`查詢標籤失敗：${lookupError.message}`);
+  }
+
+  if (duplicate && duplicate.id !== tagId) {
+    await mergeTags(tagId, duplicate.id);
+    revalidatePath("/", "layout");
+    return;
+  }
+
+  const { error } = await supabase.from("tags").update({ name }).eq("id", tagId);
+
+  if (error) {
+    throw new Error(`改標籤名失敗：${error.message}`);
+  }
+
+  revalidatePath("/", "layout");
+}
+
+/**
+ * 刪掉標籤本身。
+ *
+ * **只拿掉標籤，筆記一篇都不會動** —— 這是分類方式的調整，不是清理內容。
+ * note_tags 的外鍵是 on delete cascade，所以關聯會跟著消失。
+ */
+export async function deleteTag(tagId: string) {
+  await requireUser();
+  const supabase = await createClient();
+
+  const { error } = await supabase.from("tags").delete().eq("id", tagId);
+
+  if (error) {
+    throw new Error(`刪除標籤失敗：${error.message}`);
+  }
+
+  revalidatePath("/", "layout");
+}
+
+/** 把 `fromId` 的關聯搬到 `toId`，然後刪掉 `fromId`。 */
+async function mergeTags(fromId: string, toId: string) {
+  const supabase = await createClient();
+
+  const { data: links, error: linkError } = await supabase
+    .from("note_tags")
+    .select("note_id")
+    .eq("tag_id", fromId);
+
+  if (linkError) {
+    throw new Error(`讀取標籤關聯失敗：${linkError.message}`);
+  }
+
+  for (const link of links ?? []) {
+    const { error } = await supabase
+      .from("note_tags")
+      .insert({ note_id: link.note_id, tag_id: toId });
+
+    // 兩邊都掛過的筆記會撞到唯一鍵，那正是我們要的結果，不算錯。
+    if (error && error.code !== UNIQUE_VIOLATION) {
+      throw new Error(`合併標籤失敗：${error.message}`);
+    }
+  }
+
+  const { error } = await supabase.from("tags").delete().eq("id", fromId);
+  if (error) {
+    throw new Error(`合併標籤失敗：${error.message}`);
+  }
+}

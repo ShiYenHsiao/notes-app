@@ -24,7 +24,7 @@ export default async function HelpPage() {
     <div className="flex h-full flex-col">
       <header className="flex items-center gap-3 border-b border-line px-5 py-2.5">
         <span className="eyebrow">內建頁面</span>
-        <span className="text-[11px] text-ink-muted">不會存進資料庫，也不會出現在筆記列表</span>
+        <span className="text-xs text-ink-muted">不會存進資料庫，也不會出現在筆記列表</span>
       </header>
 
       <div className="min-w-0 flex-1 overflow-y-auto bg-paper px-7 py-7">

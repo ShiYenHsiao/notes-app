@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { IconHighlight } from "./icons";
 import type { EditorApi, HighlightColor } from "./markdown-editor";
+import { Tooltip } from "./tooltip";
 
 /** 四色與各自的用途建議。顏色本身取自 CSS 變數，深淺主題會自動跟著換。 */
 const COLORS: { value?: HighlightColor; label: string; token: string }[] = [
@@ -56,38 +57,40 @@ export function HighlightButton({ api }: { api: React.RefObject<EditorApi | null
 
   return (
     <div ref={host} className="relative flex items-center">
-      <button
-        type="button"
-        title="螢光筆  ⌘⇧H"
-        aria-label="螢光筆"
-        onClick={() => apply(undefined)}
-        className="flex size-7 items-center justify-center rounded-[3px] text-ink-muted transition-colors hover:bg-accent-soft hover:text-accent"
-      >
-        <IconHighlight />
-      </button>
+      <Tooltip label="螢光筆" shortcut="⌘⇧H">
+        <button
+          type="button"
+          aria-label="螢光筆"
+          onClick={() => apply(undefined)}
+          className="flex size-8 items-center justify-center rounded-md text-ink-muted transition-colors duration-150 hover:bg-accent-soft hover:text-accent"
+        >
+          <IconHighlight />
+        </button>
+      </Tooltip>
 
-      <button
-        type="button"
-        title="選顏色"
-        aria-label="選螢光筆顏色"
-        aria-expanded={open}
-        onClick={() => setOpen((value) => !value)}
-        className="flex h-7 w-3 items-center justify-center rounded-[3px] text-[8px] text-ink-muted transition-colors hover:bg-accent-soft hover:text-accent"
-      >
-        ▾
-      </button>
+      <Tooltip label="選顏色">
+        <button
+          type="button"
+          aria-label="選螢光筆顏色"
+          aria-expanded={open}
+          onClick={() => setOpen((value) => !value)}
+          className="flex h-8 w-3.5 items-center justify-center rounded-md text-2xs text-ink-muted transition-colors duration-150 hover:bg-accent-soft hover:text-accent"
+        >
+          ▾
+        </button>
+      </Tooltip>
 
       {open ? (
-        <div className="absolute top-8 left-0 z-20 w-40 rounded-[3px] border border-line bg-surface py-1 shadow-[0_12px_32px_rgba(55,53,47,0.14)]">
+        <div className="absolute top-9 left-0 z-20 w-44 rounded-md border border-line bg-surface py-1 shadow-pop">
           {COLORS.map((color) => (
             <button
               key={color.label}
               type="button"
               onClick={() => apply(color.value)}
-              className="flex w-full items-center gap-2 px-2.5 py-1.5 text-[11px] text-ink transition-colors hover:bg-accent-soft"
+              className="flex w-full items-center gap-2 px-3 py-1.5 text-sm text-ink transition-colors duration-150 hover:bg-accent-soft"
             >
               <span
-                className="size-3.5 shrink-0 rounded-[2px] border border-line"
+                className="size-3.5 shrink-0 rounded-sm border border-line"
                 style={{ background: `var(${color.token})` }}
                 aria-hidden
               />

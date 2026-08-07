@@ -57,7 +57,7 @@ function formatUpdatedAt(iso: string): string {
   }).format(new Date(iso));
 }
 
-function toSummary(row: NoteRow): NoteSummary {
+function toSummary(row: NoteRow, tags: string[]): NoteSummary {
   return {
     id: row.id,
     title: row.title,
@@ -65,7 +65,60 @@ function toSummary(row: NoteRow): NoteSummary {
     pinned: row.pinned,
     updated_at: row.updated_at,
     updated_label: formatUpdatedAt(row.updated_at),
+    tags,
   };
+}
+
+/**
+ * 這批筆記各自掛了哪些標籤名稱。
+ *
+ * 兩次查詢再在 JS 這邊併起來，不用 PostgREST 的 embedded select ——
+ * 手寫的 Database 型別沒有描述關聯，embedded 過不了型別檢查（listTags 也是同樣做法）。
+ */
+async function tagNamesByNote(noteIds: string[]): Promise<Map<string, string[]>> {
+  const byNote = new Map<string, string[]>();
+  if (noteIds.length === 0) {
+    return byNote;
+  }
+
+  const supabase = await createClient();
+
+  const { data: links, error: linkError } = await supabase
+    .from("note_tags")
+    .select("note_id, tag_id")
+    .in("note_id", noteIds);
+
+  if (linkError) {
+    throw new Error(`讀取標籤關聯失敗：${linkError.message}`);
+  }
+  if (!links || links.length === 0) {
+    return byNote;
+  }
+
+  const { data: tags, error: tagError } = await supabase
+    .from("tags")
+    .select("id, name")
+    .in("id", [...new Set(links.map((link) => link.tag_id))]);
+
+  if (tagError) {
+    throw new Error(`讀取標籤失敗：${tagError.message}`);
+  }
+
+  const names = new Map((tags ?? []).map((tag) => [tag.id, tag.name]));
+
+  for (const link of links) {
+    const name = names.get(link.tag_id);
+    if (!name) {
+      continue;
+    }
+    byNote.set(link.note_id, [...(byNote.get(link.note_id) ?? []), name]);
+  }
+
+  for (const list of byNote.values()) {
+    list.sort((a, b) => a.localeCompare(b, "zh-TW"));
+  }
+
+  return byNote;
 }
 
 /**
@@ -75,7 +128,7 @@ function toSummary(row: NoteRow): NoteSummary {
  * 另外再比一次沒有意義，還要處理 PostgREST 的 or 語法跳脫。
  */
 export async function listNotes(
-  options: { query?: string; trashed?: boolean; tagId?: string } = {},
+  options: { query?: string; trashed?: boolean; tagId?: string; pinned?: boolean } = {},
 ) {
   const supabase = await createClient();
 
@@ -105,6 +158,10 @@ export async function listNotes(
         .order("pinned", { ascending: false })
         .order("updated_at", { ascending: false });
 
+  if (options.pinned) {
+    request = request.eq("pinned", true);
+  }
+
   const query = options.query?.trim();
   if (query) {
     request = request.ilike("content", `%${escapeLikePattern(query)}%`);
@@ -115,7 +172,10 @@ export async function listNotes(
     throw new Error(`讀取筆記列表失敗：${error.message}`);
   }
 
-  return (data ?? []).map(toSummary);
+  const rows = data ?? [];
+  const tags = await tagNamesByNote(rows.map((row) => row.id));
+
+  return rows.map((row) => toSummary(row, tags.get(row.id) ?? []));
 }
 
 /** 單篇筆記的完整內容。找不到（或不屬於這個使用者）時回傳 null。 */
@@ -140,14 +200,20 @@ export async function getNote(id: string): Promise<NoteDetail | null> {
 export async function countNotes() {
   const supabase = await createClient();
 
-  const [all, trashed] = await Promise.all([
+  const [all, trashed, pinned] = await Promise.all([
     supabase.from("notes").select("*", { count: "exact", head: true }).is("deleted_at", null),
     supabase.from("notes").select("*", { count: "exact", head: true }).not("deleted_at", "is", null),
+    supabase
+      .from("notes")
+      .select("*", { count: "exact", head: true })
+      .is("deleted_at", null)
+      .eq("pinned", true),
   ]);
 
   return {
     all: all.count ?? 0,
     trashed: trashed.count ?? 0,
+    pinned: pinned.count ?? 0,
   };
 }
 

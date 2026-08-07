@@ -3,6 +3,8 @@ import { redirect } from "next/navigation";
 import { isSupabaseConfigured } from "@/lib/env";
 import { createClient } from "@/lib/supabase/server";
 
+import { NexumBadge } from "@/components/logo";
+
 import { LoginForm } from "./login-form";
 
 export default async function LoginPage({
@@ -30,19 +32,16 @@ export default async function LoginPage({
   return (
     <main className="login-page">
       <div className="login-card">
-        <span
-          className="mb-4 grid size-[52px] place-items-center rounded-[3px] bg-accent text-[26px] text-white"
-          style={{ fontFamily: "var(--font-serif)" }}
-          aria-hidden
-        >
-          筆
-        </span>
+        <NexumBadge size={52} className="mb-5" />
 
-        <p className="eyebrow">Notes</p>
-        <h1 className="mt-3 mb-2 text-[28px]" style={{ fontFamily: "var(--font-serif)" }}>
-          筆記
+        <p className="eyebrow">Legal Knowledge Workspace</p>
+        <h1
+          className="mt-3 mb-2 text-display tracking-[0.16em]"
+          style={{ fontFamily: "var(--font-serif)" }}
+        >
+          NEXUM
         </h1>
-        <span className="text-[12px] text-ink-muted">用 email 收一封登入連結，不需要密碼。</span>
+        <span className="text-sm text-ink-muted">用 email 收一封登入連結，不需要密碼。</span>
 
         {error ? (
           <p role="alert" className="login-error">

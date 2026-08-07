@@ -34,6 +34,13 @@
   --accent: light-dark(#2f5d8a, #7fb0dd);
   --accent-soft: light-dark(#e7eef6, #1e2b36);
 
+  /*
+   * 低飽和金。品牌的第二色，只用在細節：方案卡的邊、品牌標記。
+   * 面積一大就會變成廉價的「金色會員」感，所以刻意只當點綴。
+   */
+  --gold: light-dark(#a98a4b, #d5b982);
+  --gold-soft: light-dark(#f3ecdd, #2c2517);
+
   /* 刪除這類破壞性操作，不跟一般操作同色 */
   --danger: light-dark(#b3392c, #e08a7c);
   --danger-soft: light-dark(#f8e7e3, #33221f);
@@ -89,6 +96,8 @@
   --color-danger: var(--danger);
   --color-danger-soft: var(--danger-soft);
   --color-rail: var(--rail);
+  --color-gold: var(--gold);
+  --color-gold-soft: var(--gold-soft);
 
   /*
    * 介面用無襯線、內文用襯線 —— 這是整套設計最關鍵的一條。
@@ -100,13 +109,42 @@
   --font-sans: "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", system-ui, sans-serif;
   --font-serif: Georgia, "Noto Serif TC", "Songti TC", "Source Han Serif TC", serif;
   --font-mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, monospace;
+
+  /*
+   * 介面字級。刻意壓在五階加一個大標 —— 這是密度很高的工具介面，級距再多只會讓
+   * 同一種東西在不同畫面長得不一樣。內文（預覽區）不走這套，它由 .markdown-body 自己管。
+   *
+   * base 是介面的主字級（側邊欄導覽、筆記標題），sm 給次要資訊（時間、說明），
+   * xs／2xs 給計數與標記，display 只給登入頁與空狀態那種大標。
+   */
+  --text-2xs: 10px;
+  --text-xs: 11px;
+  --text-sm: 12px;
+  --text-base: 14px;
+  --text-lg: 15px;
+  --text-display: 28px;
+
+  /*
+   * 圓角。蓋掉 Tailwind 預設值：預設的 4px／6px 對這種資訊密度偏圓，
+   * 看起來像 SaaS 後台而不是工具。
+   */
+  --radius-sm: 3px;
+  --radius-md: 5px;
+  --radius-lg: 8px;
+
+  /*
+   * 陰影只有兩種用途：浮起來的選單，以及登入卡片。
+   * 介面內的層次靠四層底色做，不靠陰影堆疊。
+   */
+  --shadow-pop: 0 12px 32px light-dark(rgba(55, 53, 47, 0.14), rgba(0, 0, 0, 0.45));
+  --shadow-card: 0 24px 70px light-dark(rgba(55, 53, 47, 0.1), rgba(0, 0, 0, 0.4));
 }
 
 body {
   background: var(--paper);
   color: var(--ink);
   font-family: var(--font-sans);
-  font-size: 13px;
+  font-size: var(--text-base);
   line-height: 1.7;
 }
 
@@ -170,6 +208,17 @@ body::after {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
 }
 
+/*
+ * 微互動只有兩種：淡入與一小段位移，時間都在 150–200ms。
+ * 再長就會擋住操作 —— 這是每天用好幾小時的工具，不是展示頁。
+ */
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+}
+
 /* 會動的東西一律尊重系統的「減少動態效果」設定 */
 @media (prefers-reduced-motion: reduce) {
   *,
@@ -193,11 +242,18 @@ body::after {
   margin-top: 0;
 }
 
-/* 預覽區是閱讀場景，跟介面反過來 —— 這裡才用襯線體，字級也放大。 */
+/*
+ * 預覽區是閱讀場景，跟介面反過來 —— 這裡才用襯線體，字級也放大。
+ *
+ * 寬度鎖在 68 個字元上下：法律筆記的段落長，一行超過這個寬度眼睛回頭找下一行
+ * 就會跳行。這是電子書與教科書的行寬慣例，不是隨便挑的數字。
+ */
 .markdown-body {
+  max-width: 68ch;
+  margin: 0 auto;
   font-family: var(--font-serif);
   font-size: 16px;
-  line-height: 1.75;
+  line-height: 1.8;
 }
 
 /*
@@ -264,6 +320,24 @@ body::after {
   margin: 0;
 }
 
+/*
+ * 法律筆記的四種語氣。顏色各自對應一種閱讀方式：
+ * 重點是金色（品牌的第二色，最該被看見的東西）、實務見解是墨藍（法院的立場）、
+ * 易錯提醒是紅色（會扣分的地方）、自我理解是綠色（自己的話，不是權威來源）。
+ */
+.markdown-body .callout-key {
+  --callout-tone: var(--gold);
+}
+.markdown-body .callout-practice {
+  --callout-tone: var(--accent);
+}
+.markdown-body .callout-pitfall {
+  --callout-tone: var(--danger);
+}
+.markdown-body .callout-insight {
+  --callout-tone: light-dark(#3f7d5e, #7fc4a0);
+}
+
 .markdown-body .callout-note {
   --callout-tone: var(--accent);
 }
@@ -280,23 +354,56 @@ body::after {
   --callout-tone: var(--danger);
 }
 
+/*
+ * 標題層級。
+ *
+ * 中文標題沒有大小寫可以拉開差異，只靠字級的話 h2 與 h3 幾乎分不出來，
+ * 所以每一級各給一個額外的訊號：h1 下面一條線、h2 前面一段短的墨藍標記、
+ * h3 改用無襯線體。這樣「壹 → 一 → （一）」那種深層級才數得出來。
+ */
 .markdown-body h1,
 .markdown-body h2,
 .markdown-body h3,
 .markdown-body h4 {
-  margin: 1.6em 0 0.6em;
+  margin: 1.7em 0 0.6em;
   font-weight: 600;
   line-height: 1.35;
 }
 
 .markdown-body h1 {
-  font-size: 1.6em;
+  padding-bottom: 0.3em;
+  border-bottom: 1px solid var(--line);
+  font-size: 1.55em;
+  letter-spacing: 0.01em;
 }
+
 .markdown-body h2 {
-  font-size: 1.3em;
+  position: relative;
+  padding-left: 0.7em;
+  font-size: 1.28em;
 }
+
+.markdown-body h2::before {
+  content: "";
+  position: absolute;
+  top: 0.28em;
+  bottom: 0.28em;
+  left: 0;
+  width: 3px;
+  border-radius: 2px;
+  background: var(--accent);
+}
+
 .markdown-body h3 {
-  font-size: 1.1em;
+  font-family: var(--font-sans);
+  font-size: 1.05em;
+  font-weight: 700;
+}
+
+.markdown-body h4 {
+  color: var(--ink-muted);
+  font-family: var(--font-sans);
+  font-size: 0.95em;
 }
 
 .markdown-body p,
@@ -310,7 +417,7 @@ body::after {
 
 .markdown-body ul,
 .markdown-body ol {
-  padding-left: 1.5em;
+  padding-left: 1.6em;
 }
 
 .markdown-body ul {
@@ -318,6 +425,23 @@ body::after {
 }
 .markdown-body ol {
   list-style: decimal;
+}
+
+/* 巢狀清單換一種記號，層級才數得出來 */
+.markdown-body ul ul {
+  list-style: circle;
+}
+.markdown-body ul ul ul {
+  list-style: square;
+}
+
+.markdown-body li {
+  margin: 0.3em 0;
+}
+
+.markdown-body li > ul,
+.markdown-body li > ol {
+  margin: 0.3em 0;
 }
 
 .markdown-body li::marker {
@@ -330,10 +454,24 @@ body::after {
   text-underline-offset: 0.2em;
 }
 
+/*
+ * 引用。法律筆記裡這通常是判決或條文的原文，所以給它一點份量：
+ * 淡底色加上襯線的斜體感，讓它跟自己寫的分析一眼分得開。
+ */
 .markdown-body blockquote {
-  padding-left: 1em;
-  border-left: 3px solid var(--line);
+  padding: 0.6em 1em;
+  border-left: 3px solid color-mix(in srgb, var(--accent) 35%, transparent);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  background: color-mix(in srgb, var(--accent) 4%, transparent);
   color: var(--ink-muted);
+}
+
+.markdown-body blockquote > :first-child {
+  margin-top: 0;
+}
+
+.markdown-body blockquote > :last-child {
+  margin-bottom: 0;
 }
 
 .markdown-body hr {

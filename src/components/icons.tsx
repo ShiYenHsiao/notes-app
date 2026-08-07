@@ -178,6 +178,97 @@ export function IconBook(props: IconProps) {
   );
 }
 
+export function IconUndo(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M4 9h11a5 5 0 0 1 0 10H9" />
+      <path d="M8 5 4 9l4 4" />
+    </Icon>
+  );
+}
+
+export function IconRedo(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M20 9H9a5 5 0 0 0 0 10h6" />
+      <path d="m16 5 4 4-4 4" />
+    </Icon>
+  );
+}
+
+export function IconDivider(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M4 12h16" />
+      <path d="M7 7h10M7 17h10" opacity="0.4" />
+    </Icon>
+  );
+}
+
+export function IconMore(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <circle cx="5" cy="12" r="1.4" fill="currentColor" stroke="none" />
+      <circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none" />
+      <circle cx="19" cy="12" r="1.4" fill="currentColor" stroke="none" />
+    </Icon>
+  );
+}
+
+export function IconPinned(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M12 3 14 9h6l-5 4 2 6-5-3.5L7 19l2-6-5-4h6z" />
+    </Icon>
+  );
+}
+
+export function IconTag(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M4 4h7l9 9-7 7-9-9z" />
+      <circle cx="8.5" cy="8.5" r="1.4" />
+    </Icon>
+  );
+}
+
+export function IconSettings(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M4 7h16M4 12h16M4 17h16" />
+      <circle cx="9" cy="7" r="2" />
+      <circle cx="15" cy="12" r="2" />
+      <circle cx="8" cy="17" r="2" />
+    </Icon>
+  );
+}
+
+export function IconNotes(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M5 4h14v16H5z" />
+      <path d="M9 8h6M9 12h6M9 16h3" />
+    </Icon>
+  );
+}
+
+export function IconPlus(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M12 5v14M5 12h14" />
+    </Icon>
+  );
+}
+
+export function IconSidebar(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M4 5h16v14H4z" />
+      <path d="M10 5v14" />
+    </Icon>
+  );
+}
+
 export function IconSearch(props: IconProps) {
   return (
     <Icon {...props}>

@@ -5,8 +5,8 @@ import { themeInitScript } from "@/lib/theme";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "筆記",
-  description: "跨裝置的個人筆記工具",
+  title: "NEXUM NOTE",
+  description: "為法律考生與法律工作者設計的知識管理筆記工具",
 };
 
 export const viewport: Viewport = {
