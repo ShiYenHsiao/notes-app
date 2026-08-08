@@ -27,6 +27,7 @@ import {
   TEXT_INDENT_UNIT,
 } from "../src/lib/indent-rules.ts";
 import { calloutBlock } from "../src/lib/callouts.ts";
+import { headingAnchorId, parseOutline } from "../src/lib/outline.ts";
 import { rehypeHighlight } from "../src/lib/rehype-highlight.ts";
 import { rehypeCallout } from "../src/lib/rehype-callout.ts";
 
@@ -318,4 +319,54 @@ test("清單前綴互斥，不會疊成 1. - 內容", () => {
   // 標題與引用不是清單，不該觸發補空行
   assert.equal(isListPrefix("# "), false);
   assert.equal(isListPrefix("> "), false);
+});
+
+// ---------------------------------------------------------------- 大綱
+
+test("抽出各層標題與行號", () => {
+  const items = parseOutline("# 總論\n內容\n\n## 意義\n### 學說\n");
+  assert.deepEqual(
+    items.map((item) => [item.level, item.text, item.line]),
+    [
+      [1, "總論", 1],
+      [2, "意義", 4],
+      [3, "學說", 5],
+    ],
+  );
+});
+
+test("沒有空白的 #標題 不算標題", () => {
+  // CommonMark 也不當它是標題，預覽同樣不會變大 —— 大綱收了它會跳到一個看起來不是標題的地方
+  assert.deepEqual(parseOutline("#標題"), []);
+});
+
+test("圍欄程式碼區塊裡的 # 不算標題", () => {
+  const items = parseOutline("# 真標題\n\n```\n# 這是註解\n```\n\n## 又一個真標題");
+  assert.deepEqual(
+    items.map((item) => item.text),
+    ["真標題", "又一個真標題"],
+  );
+});
+
+test("波浪號圍欄與長圍欄也認得", () => {
+  assert.deepEqual(parseOutline("~~~\n# 註解\n~~~").length, 0);
+  // 結尾的圍欄不能比開頭短
+  assert.deepEqual(parseOutline("````\n# 註解\n```\n# 還在區塊裡\n````").length, 0);
+});
+
+test("結尾的 # 是收尾記號，不算內容", () => {
+  assert.equal(parseOutline("## 意義 ##")[0].text, "意義");
+});
+
+test("空標題不進大綱", () => {
+  assert.deepEqual(parseOutline("#\n##   "), []);
+});
+
+test("index 是出現順序，預覽區的錨點靠它對應", () => {
+  const items = parseOutline("# 一\n## 二\n# 三");
+  assert.deepEqual(
+    items.map((item) => item.index),
+    [0, 1, 2],
+  );
+  assert.equal(headingAnchorId(2), "nexum-heading-2");
 });

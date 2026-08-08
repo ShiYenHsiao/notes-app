@@ -4,6 +4,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
 import { rehypeCallout } from "@/lib/rehype-callout";
+import { rehypeHeadingIds } from "@/lib/rehype-heading-ids";
 import { rehypeHighlight } from "@/lib/rehype-highlight";
 
 /**
@@ -22,7 +23,7 @@ export function MarkdownPreview({ content }: { content: string }) {
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         // callout 要先跑：它會把 blockquote 換成 div，換完再讓螢光筆處理裡面的文字
-        rehypePlugins={[rehypeCallout, rehypeHighlight]}
+        rehypePlugins={[rehypeCallout, rehypeHighlight, rehypeHeadingIds]}
         components={{ img: Image }}
       >
         {content}

@@ -178,6 +178,16 @@ export function IconBook(props: IconProps) {
   );
 }
 
+export function IconOutline(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M4 6h10M7 12h10M10 18h10" />
+      <circle cx="4" cy="12" r="0.9" fill="currentColor" stroke="none" />
+      <circle cx="7" cy="18" r="0.9" fill="currentColor" stroke="none" />
+    </Icon>
+  );
+}
+
 export function IconUndo(props: IconProps) {
   return (
     <Icon {...props}>

@@ -11,6 +11,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import { displayTitle, titleFromContent } from "../src/lib/note-display.ts";
+import { batchPaths, expiryCutoff } from "../src/lib/retention.ts";
 import {
   HELP_TAB_ID,
   nextActiveAfterClose,
@@ -94,4 +95,26 @@ test("沒有標題就退回摘要，再沒有就顯示無標題", () => {
   assert.equal(displayTitle({ title: "刑法總論", excerpt: "構成要件" }), "刑法總論");
   assert.equal(displayTitle({ title: null, excerpt: "構成要件" }), "構成要件");
   assert.equal(displayTitle({ title: null, excerpt: "" }), "無標題");
+});
+
+// ---------------------------------------------------------------- 垃圾桶保留期
+
+test("過期界線是 30 天前", () => {
+  const now = new Date("2026-08-07T00:00:00.000Z");
+  assert.equal(expiryCutoff(now), "2026-07-08T00:00:00.000Z");
+});
+
+test("剛好 30 天的那一刻還沒過期", () => {
+  // lt(cutoff) 是嚴格小於，所以界線上的那一筆會留到下一次
+  const now = new Date("2026-08-07T00:00:00.000Z");
+  const cutoff = new Date(expiryCutoff(now));
+  const trashedExactly30DaysAgo = new Date("2026-07-08T00:00:00.000Z");
+  assert.equal(trashedExactly30DaysAgo < cutoff, false);
+});
+
+test("刪檔案切成批次", () => {
+  assert.deepEqual(batchPaths(["a", "b", "c"], 2), [["a", "b"], ["c"]]);
+  assert.deepEqual(batchPaths([], 2), []);
+  // 正好整除時不會多出一個空批次
+  assert.deepEqual(batchPaths(["a", "b"], 2), [["a", "b"]]);
 });

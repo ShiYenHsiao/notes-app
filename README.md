@@ -42,7 +42,7 @@ NEXUM 取自 nexus（連結、樞紐）：這個工具要做的不是收集片�
 | 圖片壓縮 | 上傳前在瀏覽器端壓縮並轉成 WebP，超過一定尺寸的縮到合理長邊。手機截圖動輒 2–3 MB，不壓的話 1 GB 額度貼幾百張就滿了 |
 | 組織方式 | 純標籤，不做資料夾；常用筆記可釘選到列表最上方 |
 | 標籤輸入 | **標題下方的 metadata 列**（chip + 自動完成）。標籤存在資料庫欄位，不寫進 Markdown 內文 |
-| 刪除 | 軟刪除進垃圾桶可還原，30 天後自動清除（附件也在此時一併回收） |
+| 刪除 | 軟刪除進垃圾桶可還原，30 天後由排程真的刪掉，附件的 Storage 檔案一併回收（見「垃圾桶的定期清理」） |
 | 匯出 | 一鍵把全部筆記匯成 `.md` 檔 + 附件打包下載。免費方案有被砍或漲價的風險，這是資料不被綁死的保險 |
 
 ## 介面
@@ -218,6 +218,27 @@ GitHub 原本的五種（NOTE／TIP／IMPORTANT／WARNING／CAUTION）**繼續�
 「壹 → 一 → （一）」那種深層級才數得出來。巢狀清單換記號（disc → circle → square），
 引用改成淡墨藍底 —— 法律筆記裡引用通常是判決或條文原文，要跟自己寫的分析一眼分得開。
 
+### 大綱面板
+
+標題列右邊的大綱按鈕會在工作區右側開一欄可點的章節清單
+（[`src/lib/outline.ts`](src/lib/outline.ts)、[`outline-panel.tsx`](src/components/outline-panel.tsx)）。
+一篇刑法總論兩三千字、標題五層深，捲動找章節是每天最花時間的動作之一。
+
+**從原始碼解析，不是從渲染結果掃 DOM**：只看編輯的模式下右邊根本沒有預覽區，但那時候
+更需要跳章節。代價是解析必須跟 CommonMark 一致 —— 特別是 `#標題`（沒有空白）在標準裡
+**不是**標題，大綱收了它會跳到一個看起來不是標題的地方，所以也不收。圍欄程式碼區塊裡的
+`# 註解` 同樣排除。
+
+點一項會**同時**移動兩邊：編輯器把游標移到那一行（`revealLine`），預覽區捲到對應的標題。
+只做其中一邊的話，分割模式下另一半停在原處反而更難對照。
+
+預覽區的標題錨點用**出現順序**（`nexum-heading-0`、`-1`…）而不是標題文字做 slug：
+法律筆記裡「意義」「要件」「實務見解」會重複十幾次，slug 一定撞號，而中文 slug 不是被
+轉成拼音就是被清成空字串。順序在同一份內文裡永遠唯一，也正好對得上解析出來的 index。
+
+目前沒有捲動時反白目前章節（scroll spy），也沒有快捷鍵 —— 前者要監聽兩邊的捲動事件，
+後者要先確認一組瀏覽器沒佔用的組合鍵。
+
 ### 內建使用說明
 
 左側欄有一個固定的「使用說明」入口（`/help`），內容來自
@@ -388,6 +409,35 @@ Markdown 可攜性不受影響。
 
 注意瀏覽器保留了 `Cmd+N`、`Cmd+T`、`Cmd+W`，網頁攔不到，所以「新增筆記」只能走命令面板或畫面上的按鈕，不要指望快捷鍵。
 
+## 垃圾桶的定期清理
+
+丟進垃圾桶超過 30 天的筆記會被真的刪掉，**連同它們在 Storage 的圖片**。
+
+實作是一個 route handler（[`/api/cron/purge`](src/app/api/cron/purge/route.ts)）配 Vercel Cron
+（`vercel.json`，每天 04:00）。
+
+**為什麼不用資料庫排程**：migration 裡有一支 `purge_deleted_notes()`，但它只刪得掉資料列 ——
+Postgres 碰不到 Storage 上的檔案。附件那幾列會被 `on delete cascade` 帶走，圖片檔卻留在
+bucket 裡變成孤兒：沒有任何介面看得到它們，卻一直佔著 1 GB 的免費額度。真正會吃掉額度的
+就是那些圖片，所以清理必須在看得到 Storage 的地方做。那支 SQL 函式留著當手動的備援。
+
+**順序**：先抓出過期筆記的 id → 讀出它們的 `storage_path` → 刪檔案 → 最後才刪筆記。
+反過來的話關聯已經 cascade 消失，就再也不知道該刪哪些檔案了。檔案刪不掉不會中斷資料列的
+清理，錯誤訊息會回在 response 裡。
+
+需要兩個環境變數，**兩個都設了才會運作**（缺哪個就回 503 並說明缺什麼）：
+
+| 變數 | 用途 |
+|---|---|
+| `SUPABASE_SERVICE_ROLE_KEY` | 排程沒有登入的使用者，要略過 RLS 才刪得掉東西。等於資料庫最高權限，只放在 Vercel 的環境變數 |
+| `CRON_SECRET` | 端點的通行碼。Vercel Cron 會自動帶 `Authorization: Bearer $CRON_SECRET` |
+
+沒設 `CRON_SECRET` 時端點**一律拒絕**：一個誰都能呼叫的刪除端點比沒有排程還糟。
+
+`/api/cron` 也列進 `proxy.ts` 的 `PUBLIC_PATHS` —— 那不是「公開」的意思，是它用 Bearer token
+自己驗證，不需要 session cookie。少了這條，排程請求會被導向登入頁，而 307 在 cron 的紀錄上
+看起來還像成功。
+
 ## 技術架構
 
 ```
@@ -459,6 +509,10 @@ npm run dev
 資料表要在 Supabase 的 SQL Editor 依序執行 `supabase/migrations/0001_init.sql`、`0002_storage.sql`。
 環境變數還沒設定時首頁會顯示設定說明，dev server 照樣跑得起來。
 
+部署到 Vercel 之後還要設兩個環境變數，垃圾桶的定期清理才會運作（見上面那一節）：
+`SUPABASE_SERVICE_ROLE_KEY` 與 `CRON_SECRET`。兩個都是**伺服器端**變數，不要加
+`NEXT_PUBLIC_` 前綴。排程本身由 repo 裡的 `vercel.json` 定義，不需要在 Dashboard 設定。
+
 專案結構：
 
 ```
@@ -521,7 +575,7 @@ npm test          # 只跑測試
 用 `node --test`，沒有額外的測試框架 —— 要驗的是幾條純函式與 remark 的解析結果，
 為此拉進 Jest 或 Vitest 不划算。
 
-[`tests/markdown.test.mjs`](tests/markdown.test.mjs) 共 41 項，涵蓋：
+[`tests/markdown.test.mjs`](tests/markdown.test.mjs) 共 48 項，涵蓋：
 
 - `==重點==` 在一般段落渲染成 `<mark>`，顏色後綴變成 `data-hl`
 - `if a == b` 這類比較式不被誤判
@@ -535,12 +589,13 @@ npm test          # 只跑測試
   四個全形空格不會變成程式碼區塊
 - 縮排參考線的欄位換算（tab 四欄、全形空格兩欄）與空行跟鄰行借縮排
 - 四種法律備註框的中文標籤、既有的 GitHub 類型沒被弄壞、不認得的類型退回成引用
+- 大綱的層級與行號、`#標題`（沒空白）與圍欄裡的 `#` 都不算標題、錨點 index 對得上
 
 [`tests/chinese-list.test.mjs`](tests/chinese-list.test.mjs) 共 24 項，涵蓋四套序列的
 辨識與遞增、上限、全形半形與大小寫的沿用，以及不該接手的寫法。
 
-[`tests/workspace.test.mjs`](tests/workspace.test.mjs) 共 13 項，涵蓋網址與分頁的對應、
-關閉分頁後跳去哪一個、存壞的 localStorage 內容、列表的標題退場規則，以及
-`titleFromContent` 與資料庫 generated column 的一致性。
+[`tests/workspace.test.mjs`](tests/workspace.test.mjs) 共 16 項，涵蓋網址與分頁的對應、
+關閉分頁後跳去哪一個、存壞的 localStorage 內容、列表的標題退場規則、`titleFromContent`
+與資料庫 generated column 的一致性，以及垃圾桶的保留期界線與刪檔的批次切法。
 
 測試直接 import `.ts` 原始碼（Node 的型別剝離），不需要先編譯。

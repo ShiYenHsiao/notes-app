@@ -33,3 +33,30 @@ export function supabaseUrl(): string {
 export function supabasePublishableKey(): string {
   return required("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", key);
 }
+
+/*
+ * 以下兩個只給排程工作用，永遠不會出現在瀏覽器端 —— 名字沒有 NEXT_PUBLIC_ 前綴，
+ * Next.js 就不會把它們打包進 client bundle。
+ */
+
+const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+/**
+ * 清理排程需要略過 RLS：它沒有登入的使用者，卻要跨帳號刪掉過期的垃圾桶內容。
+ * **這把 key 等於資料庫的最高權限**，只在 route handler 裡用，絕不能傳到瀏覽器。
+ */
+export function supabaseServiceRoleKey(): string {
+  return required("SUPABASE_SERVICE_ROLE_KEY", serviceRoleKey);
+}
+
+export function hasServiceRoleKey(): boolean {
+  return Boolean(serviceRoleKey);
+}
+
+/**
+ * 排程端點的通行碼。Vercel Cron 會自動帶上 `Authorization: Bearer $CRON_SECRET`。
+ * 沒設定的話那個端點一律拒絕 —— 一個誰都能呼叫的刪除端點比沒有排程還糟。
+ */
+export function cronSecret(): string | undefined {
+  return process.env.CRON_SECRET;
+}

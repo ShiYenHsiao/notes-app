@@ -56,6 +56,8 @@ export type EditorApi = {
   /** 復原／重做。工具列用，鍵盤的 ⌘Z 由 CodeMirror 自己處理。 */
   undo(): void;
   redo(): void;
+  /** 捲到某一行並把游標放過去。大綱面板用，行號從 1 起算。 */
+  revealLine(line: number): void;
   focus(): void;
 };
 
@@ -272,6 +274,18 @@ export function MarkdownEditor({
         },
         redo() {
           redo(view);
+          view.focus();
+        },
+        revealLine(number) {
+          // 行號可能來自還沒同步的內容（預覽有 120ms 的合併延遲），超出範圍就夾住
+          const clamped = Math.min(Math.max(number, 1), view.state.doc.lines);
+          const line = view.state.doc.line(clamped);
+
+          view.dispatch({
+            selection: { anchor: line.from },
+            // start：讓那一行落在畫面上方，底下才看得到接下來的內容
+            effects: EditorView.scrollIntoView(line.from, { y: "start", yMargin: 24 }),
+          });
           view.focus();
         },
         focus() {

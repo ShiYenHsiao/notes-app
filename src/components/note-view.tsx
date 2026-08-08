@@ -6,14 +6,16 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { togglePin, trashNote } from "@/lib/actions/notes";
 import { titleFromContent, type NoteDetail, type TagSummary } from "@/lib/note-display";
+import { headingAnchorId, parseOutline, type OutlineItem } from "@/lib/outline";
 import { useAutosave } from "@/lib/use-autosave";
 import { useImageUpload } from "@/lib/use-image-upload";
 import { useReportSaveStatus } from "@/lib/workspace-status";
 
 import { EditorToolbar } from "./editor-toolbar";
-import { IconPin, IconTrash } from "./icons";
+import { IconOutline, IconPin, IconTrash } from "./icons";
 import type { EditorApi } from "./markdown-editor";
 import { MarkdownPreview } from "./markdown-preview";
+import { OutlinePanel } from "./outline-panel";
 import { TagBar } from "./tag-bar";
 import { Tooltip } from "./tooltip";
 import { VersionHistory } from "./version-history";
@@ -84,6 +86,20 @@ export function NoteView({
   // 標題即時從內文推導，跟資料庫的 generated column 同一套規則
   const title = titleFromContent(content);
 
+  const [outlineOpen, setOutlineOpen] = useState(false);
+  const outline = parseOutline(content);
+
+  /*
+   * 點大綱時兩邊一起跳：編輯器把游標移到那一行，預覽區捲到對應的標題。
+   * 只做其中一邊的話，在分割模式下另一半就停在原處，反而更難對照。
+   */
+  function goToHeading(item: OutlineItem) {
+    editorApi.current?.revealLine(item.line);
+    document
+      .getElementById(headingAnchorId(item.index))
+      ?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
   return (
     <div className="flex h-full flex-col">
       {/*
@@ -106,6 +122,22 @@ export function NoteView({
           </h1>
 
           <div className="flex shrink-0 items-center gap-0.5">
+            {isDesktop ? (
+              <Tooltip label={outlineOpen ? "關閉大綱" : "大綱"}>
+                <button
+                  type="button"
+                  onClick={() => setOutlineOpen((open) => !open)}
+                  aria-label="大綱"
+                  aria-pressed={outlineOpen}
+                  className={`flex size-8 items-center justify-center rounded-md transition-colors duration-150 hover:bg-accent-soft ${
+                    outlineOpen ? "bg-accent-soft text-accent" : "text-ink-muted hover:text-accent"
+                  }`}
+                >
+                  <IconOutline />
+                </button>
+              </Tooltip>
+            ) : null}
+
             <VersionHistory noteId={note.id} />
 
             <Tooltip label={note.pinned ? "取消釘選" : "釘選到列表最上面"}>
@@ -208,6 +240,10 @@ export function NoteView({
           >
             <MarkdownPreview content={content} />
           </div>
+        ) : null}
+
+        {isDesktop && outlineOpen ? (
+          <OutlinePanel items={outline} onSelect={goToHeading} />
         ) : null}
       </div>
 

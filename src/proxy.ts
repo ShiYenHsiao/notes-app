@@ -3,8 +3,14 @@ import { createServerClient } from "@supabase/ssr";
 
 import { isSupabaseConfigured, supabasePublishableKey, supabaseUrl } from "@/lib/env";
 
-/** 不需要登入就能開啟的路徑。 */
-const PUBLIC_PATHS = ["/login", "/auth"];
+/**
+ * 不需要 session 的路徑。
+ *
+ * `/api/cron` 不是「公開」的意思 —— 它用 `CRON_SECRET` 的 Bearer token 自己驗，
+ * 因為呼叫它的是 Vercel Cron，手上沒有登入 cookie。少了這一條，排程請求會被下面
+ * 那段導向登入頁，清理永遠不會執行（而且 307 在 cron 的紀錄上看起來還像成功）。
+ */
+const PUBLIC_PATHS = ["/login", "/auth", "/api/cron"];
 
 /**
  * Next.js 16 把 `middleware.ts` 改名為 `proxy.ts`（功能相同）。
