@@ -7,13 +7,16 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { togglePin, trashNote } from "@/lib/actions/notes";
 import { titleFromContent, type NoteDetail, type TagSummary } from "@/lib/note-display";
 import { headingAnchorId, parseOutline, type OutlineItem } from "@/lib/outline";
+import { useActiveHeading } from "@/lib/use-active-heading";
 import { useAutosave } from "@/lib/use-autosave";
 import { useImageUpload } from "@/lib/use-image-upload";
 import { useScrollSync } from "@/lib/use-scroll-sync";
+import { useFocusMode } from "@/lib/workspace-focus";
 import { useReportSaveStatus } from "@/lib/workspace-status";
 
+import { ContextMenu, useContextMenu } from "./context-menu";
 import { EditorToolbar } from "./editor-toolbar";
-import { IconOutline, IconPin, IconTrash } from "./icons";
+import { IconFocus, IconMore, IconOutline } from "./icons";
 import type { EditorApi } from "./markdown-editor";
 import { MarkdownPreview } from "./markdown-preview";
 import { OutlinePanel } from "./outline-panel";
@@ -66,13 +69,24 @@ export function NoteView({
   });
 
   const [viewMode, setViewMode] = useState<ViewMode>("split");
+  const { focused, toggle: toggleFocus } = useFocusMode();
 
-  // ⌘1 / ⌘2 / ⌘3 切換三種檢視。這些鍵瀏覽器沒有佔用，攔得下來。
+  // ⌘1 / ⌘2 / ⌘3 切換三種檢視、⌘⇧I 插入圖片。這些鍵瀏覽器沒有佔用，攔得下來。
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
-      if (!event.metaKey || event.shiftKey || event.altKey) {
+      if (!event.metaKey || event.altKey) {
         return;
       }
+
+      // 工具列上一直寫著 ⌘⇧I，但以前沒有人綁它 —— 現在它是真的了
+      if (event.shiftKey) {
+        if (event.key.toLowerCase() === "i") {
+          event.preventDefault();
+          filePicker.current?.click();
+        }
+        return;
+      }
+
       const mode = VIEW_MODE_KEYS[event.key];
       if (mode) {
         event.preventDefault();
@@ -90,7 +104,20 @@ export function NoteView({
   // 標題即時從內文推導，跟資料庫的 generated column 同一套規則
   const title = titleFromContent(content);
 
-  const [outlineOpen, setOutlineOpen] = useState(false);
+  /*
+   * 大綱的開關兩種模式各記一份。
+   *
+   * 專注模式那份預設是關的（進去就是要清場），但使用者仍然可以手動打開；一般模式
+   * 那份完全不受影響，所以退出專注模式時自然就回到原本的樣子 —— 不需要進場拍快照、
+   * 退場還原，也就不需要在 effect 裡改 state。
+   *
+   * 其他狀態（側邊欄收合、檢視模式、捲動與游標）都只是被藏起來，底下沒有被動過。
+   */
+  const [outlineOpenNormal, setOutlineOpenNormal] = useState(false);
+  const [outlineOpenFocus, setOutlineOpenFocus] = useState(false);
+  const outlineOpen = focused ? outlineOpenFocus : outlineOpenNormal;
+  const setOutlineOpen = focused ? setOutlineOpenFocus : setOutlineOpenNormal;
+
   const outline = parseOutline(content);
 
   useScrollSync({
@@ -100,6 +127,9 @@ export function NoteView({
     // 只有分割模式才有對象可以同步
     enabled: editorReady && showEditor && showPreview,
   });
+
+  // 大綱上的「現在讀到這裡」。只有預覽區在畫面上時判斷得出來。
+  const activeHeading = useActiveHeading(previewRef, outline, outlineOpen && showPreview);
 
   /*
    * 點大綱時兩邊一起跳：編輯器把游標移到那一行，預覽區捲到對應的標題。
@@ -113,12 +143,16 @@ export function NoteView({
   }
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="relative flex h-full flex-col">
       {/*
         筆記的 metadata 區：標題與標籤在內容上方，用一條分隔線跟內容隔開。
         標籤是**資料庫欄位而不是內文的一部分**，所以它屬於這裡，不屬於編輯區裡面。
       */}
-      <header className="shrink-0 border-b border-line px-5 pt-3 pb-2.5">
+      <header
+        className={`shrink-0 border-b border-line transition-[padding] duration-200 ease-out ${
+          focused ? "px-6 pt-2.5 pb-2" : "px-5 pt-3 pb-2.5"
+        }`}
+      >
         <div className="flex items-center gap-3">
           <Link href="/" className="shrink-0 text-sm text-ink-muted hover:text-accent md:hidden">
             ← 返回
@@ -133,55 +167,42 @@ export function NoteView({
             {title ?? "無標題"}
           </h1>
 
+          {/*
+            高頻的留在檯面上（大綱、專注模式），低頻的收進 ⋯：
+            版本紀錄、釘選、刪除加起來一週用不到幾次，卻佔著標題列一半的寬度。
+          */}
           <div className="flex shrink-0 items-center gap-0.5">
             {isDesktop ? (
-              <Tooltip label={outlineOpen ? "關閉大綱" : "大綱"}>
-                <button
-                  type="button"
+              <>
+                <HeaderButton
+                  label={outlineOpen ? "關閉大綱" : "大綱"}
+                  ariaLabel="大綱"
+                  pressed={outlineOpen}
                   onClick={() => setOutlineOpen((open) => !open)}
-                  aria-label="大綱"
-                  aria-pressed={outlineOpen}
-                  className={`flex size-8 items-center justify-center rounded-md transition-colors duration-150 hover:bg-accent-soft ${
-                    outlineOpen ? "bg-accent-soft text-accent" : "text-ink-muted hover:text-accent"
-                  }`}
                 >
                   <IconOutline />
-                </button>
-              </Tooltip>
+                </HeaderButton>
+
+                <HeaderButton
+                  label="專注模式"
+                  shortcut="⌘⇧F"
+                  ariaLabel="專注模式"
+                  pressed={focused}
+                  onClick={toggleFocus}
+                >
+                  <IconFocus />
+                </HeaderButton>
+              </>
             ) : null}
 
+            {/* 版本紀錄自己帶一個面板，維持獨立按鈕；釘選與刪除收進選單 */}
             <VersionHistory noteId={note.id} />
 
-            <Tooltip label={note.pinned ? "取消釘選" : "釘選到列表最上面"}>
-              <form action={togglePin.bind(null, note.id, !note.pinned)}>
-                <button
-                  type="submit"
-                  aria-label={note.pinned ? "取消釘選" : "釘選"}
-                  aria-pressed={note.pinned}
-                  className={`flex size-8 items-center justify-center rounded-md transition-colors duration-150 hover:bg-accent-soft ${
-                    note.pinned ? "text-gold" : "text-ink-muted hover:text-accent"
-                  }`}
-                >
-                  <IconPin />
-                </button>
-              </form>
-            </Tooltip>
-
-            {/* 刪除跟其他操作隔開，減少手滑的機會 */}
-            <span className="mx-1.5 h-4 w-px bg-line" aria-hidden />
-
-            {/* 刪的是正在看的這篇，所以刪完要離開它（goHome = true） */}
-            <Tooltip label="丟進垃圾桶" shortcut="可還原">
-              <form action={trashNote.bind(null, note.id, true)}>
-                <button
-                  type="submit"
-                  aria-label="刪除"
-                  className="flex size-8 items-center justify-center rounded-md text-ink-muted transition-colors duration-150 hover:bg-danger-soft hover:text-danger"
-                >
-                  <IconTrash />
-                </button>
-              </form>
-            </Tooltip>
+            <NoteActionsMenu
+              pinned={note.pinned}
+              onPin={() => void togglePin(note.id, !note.pinned)}
+              onTrash={() => void trashNote(note.id, true)}
+            />
           </div>
         </div>
 
@@ -204,7 +225,8 @@ export function NoteView({
         </div>
       ) : null}
 
-      {isDesktop ? (
+      {/* 只看預覽時沒有編輯器可以操作，工具列就不該佔一整條 */}
+      {isDesktop && showEditor ? (
         <EditorToolbar api={editorApi} onOpenImagePicker={() => filePicker.current?.click()} />
       ) : null}
 
@@ -227,12 +249,24 @@ export function NoteView({
         分割模式下兩欄各半。min-w-0 是必要的：flex 項目的預設 min-width 是 auto，
         少了它，長網址或寬表格會把欄位撐開而讓整頁出現水平捲軸。
       */}
-      <div className="flex min-w-0 flex-1 overflow-hidden">
+      <div className="relative flex min-w-0 flex-1 overflow-hidden">
         {showEditor ? (
+          /*
+           * 分割時 45 / 55 —— 這是法律學習工具，讀比寫原始語法重要一點。
+           * 只有編輯區時給它一個置中的書寫欄（寬度由 --editor-measure 控制，
+           * 編輯器的主題會讀它），不然在 27 吋螢幕上一行會拉到一千多 px。
+           */
           <div
-            className={`min-w-0 bg-surface ${
-              showPreview ? "flex-1 basis-1/2 border-r border-line" : "w-full"
+            className={`min-w-0 bg-surface transition-[flex-basis] duration-200 ease-out ${
+              showPreview
+                ? "flex-1 basis-[45%] border-r border-line"
+                : // 置中的是整個編輯器（含行號）而不是只有文字 —— 只置中文字的話，
+                  // 行號會貼在視窗最左邊，跟它標示的那一行隔著半個螢幕
+                  "mx-auto w-full max-w-[60rem]"
             }`}
+            style={
+              showPreview ? undefined : ({ "--editor-measure": "100%" } as React.CSSProperties)
+            }
           >
             <MarkdownEditor
               initialValue={note.content}
@@ -246,18 +280,24 @@ export function NoteView({
         ) : null}
 
         {showPreview ? (
+          /* 只有預覽時給它更多上下呼吸空間，那是真正的閱讀模式 */
           <div
             ref={previewRef}
-            className={`min-w-0 overflow-y-auto bg-paper px-8 py-8 ${
-              showEditor ? "flex-1 basis-1/2" : "w-full"
+            className={`min-w-0 overflow-y-auto bg-paper px-8 transition-[flex-basis,padding] duration-200 ease-out ${
+              showEditor ? "flex-1 basis-[55%] py-8" : focused ? "w-full py-16" : "w-full py-10"
             }`}
           >
             <MarkdownPreview content={content} />
           </div>
         ) : null}
 
-        {isDesktop && outlineOpen ? (
-          <OutlinePanel items={outline} onSelect={goToHeading} />
+        {isDesktop ? (
+          <OutlinePanel
+            items={outline}
+            open={outlineOpen}
+            activeIndex={activeHeading}
+            onSelect={goToHeading}
+          />
         ) : null}
       </div>
 
@@ -278,10 +318,93 @@ export function NoteView({
         }}
       />
 
-      <footer className="flex shrink-0 items-center justify-end gap-4 border-t border-line px-5 py-1.5 text-xs text-ink-muted">
-        <SaveIndicator status={save.status} />
-      </footer>
+      {focused ? (
+        /*
+         * 專注模式沒有頁尾，存檔狀態改成浮在右下角的一行小字。
+         * 它是背景資訊，只有出問題時才該搶注意力。
+         */
+        <div className="pointer-events-none absolute right-5 bottom-3 z-10 text-sm">
+          <SaveIndicator status={save.status} />
+        </div>
+      ) : (
+        <footer className="flex shrink-0 items-center justify-end gap-4 border-t border-line px-5 py-1.5 text-xs">
+          <SaveIndicator status={save.status} />
+        </footer>
+      )}
     </div>
+  );
+}
+
+/** 標題列的 icon 按鈕。尺寸、hover、pressed 全部一致。 */
+function HeaderButton({
+  label,
+  shortcut,
+  ariaLabel,
+  pressed,
+  onClick,
+  children,
+}: {
+  label: string;
+  shortcut?: string;
+  ariaLabel: string;
+  pressed?: boolean;
+  /** 收下事件物件：選單要靠按鈕的位置決定開在哪裡。 */
+  onClick: (event: React.MouseEvent<HTMLButtonElement>) => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <Tooltip label={label} shortcut={shortcut}>
+      <button
+        type="button"
+        onClick={onClick}
+        aria-label={ariaLabel}
+        aria-pressed={pressed}
+        className={`flex size-8 items-center justify-center rounded-md transition-colors duration-150 hover:bg-accent-soft ${
+          pressed ? "bg-accent-soft text-accent" : "text-ink-muted hover:text-accent"
+        }`}
+      >
+        {children}
+      </button>
+    </Tooltip>
+  );
+}
+
+/** 低頻操作。放在檯面上只會讓標題列變成一排看不懂的圖示。 */
+function NoteActionsMenu({
+  pinned,
+  onPin,
+  onTrash,
+}: {
+  pinned: boolean;
+  onPin: () => void;
+  onTrash: () => void;
+}) {
+  const menu = useContextMenu();
+
+  return (
+    <>
+      <HeaderButton label="更多" ariaLabel="更多操作" onClick={menu.openBelow}>
+        <IconMore />
+      </HeaderButton>
+
+      {menu.position ? (
+        <ContextMenu
+          position={menu.position}
+          onClose={menu.close}
+          label="筆記操作"
+          items={[
+            { label: pinned ? "取消釘選" : "釘選到列表最上面", onSelect: onPin },
+            {
+              label: "移至垃圾桶",
+              hint: "可還原",
+              danger: true,
+              separated: true,
+              onSelect: onTrash,
+            },
+          ]}
+        />
+      ) : null}
+    </>
   );
 }
 
@@ -302,10 +425,13 @@ const STATUS_LABELS = {
   error: "儲存失敗",
 } as const;
 
+/**
+ * 存檔狀態。平常是背景資訊，低對比、不搶視線；出問題時才提高權重。
+ */
 function SaveIndicator({ status }: { status: keyof typeof STATUS_LABELS }) {
   const isProblem = status === "conflict" || status === "error";
   return (
-    <span className={isProblem ? "font-semibold text-accent" : undefined}>
+    <span className={isProblem ? "font-semibold text-danger" : "text-ink-muted/70"}>
       {STATUS_LABELS[status]}
     </span>
   );

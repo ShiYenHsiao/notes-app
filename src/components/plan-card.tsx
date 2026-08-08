@@ -14,7 +14,7 @@ export function PlanCard({ used }: { used: number }) {
   const nearLimit = ratio >= 0.8;
 
   return (
-    <div className="grid gap-2 rounded-md border border-line bg-accent-soft/60 px-3 py-2.5">
+    <div className="grid gap-2 rounded-md border border-line/70 bg-accent-soft/35 px-3 py-2.5">
       <div className="flex items-baseline gap-1.5">
         <b className="text-xs font-semibold tracking-[0.14em] text-accent">NEXUM</b>
         <span className="text-2xs tracking-wider text-gold">Scholar Free</span>

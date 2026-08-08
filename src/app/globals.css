@@ -28,7 +28,18 @@
   /* 文字是帶暖的深灰，不是純黑。純黑配暖底會有一種塑膠感。 */
   --ink: light-dark(#37352f, #e8e4db);
   --ink-muted: light-dark(#7d7768, #9a9384);
-  --line: light-dark(#e6e2d8, #33312c);
+
+  /*
+   * 分隔線。四層底色已經把區域分開了，線只負責「收邊」，所以要比底色的落差更輕 ——
+   * 每一區都畫一條深線的話，畫面會被切成一格一格的表格。
+   */
+  --line: light-dark(#eae6dc, #2e2c28);
+
+  /*
+   * Markdown 的符號（# ** == > -）。
+   * 它們是排版指令不是內容，壓到只剩「看得見但不搶眼」的程度。
+   */
+  --syntax-mark: light-dark(#b9b2a2, #6f6a5f);
 
   /* 墨藍。深色主題要提亮，否則沉在深底上看不見。 */
   --accent: light-dark(#2f5d8a, #7fb0dd);
@@ -47,13 +58,17 @@
 
   /*
    * 螢光筆。四色對應讀法條時的分層：要件／例外／實務見解／自己的疑問。
-   * 深色主題不是把淺色調暗就好 —— 螢光色在深底上要降飽和度並提高一點亮度，
+   *
+   * 刻意調得比螢光筆本身淡：目標是**紙本用好筆劃的重點**，不是麥克筆的螢光色。
+   * 整篇畫滿三十個重點時，飽和度高的顏色會讓整頁變成廣告傳單。
+   *
+   * 深色主題不是把淺色調暗 —— 螢光色在深底上要再降飽和、提一點亮度，
    * 否則會亮到蓋過文字本身。
    */
-  --hl-yellow: light-dark(#fcf0a4, #5b5220);
-  --hl-green: light-dark(#cceac4, #2d4a2a);
-  --hl-pink: light-dark(#f9d3e0, #52293a);
-  --hl-blue: light-dark(#d2e5f7, #24405c);
+  --hl-yellow: light-dark(#f7ecbe, #554c22);
+  --hl-green: light-dark(#d8e8ce, #2c4530);
+  --hl-pink: light-dark(#f4dae1, #4b2c38);
+  --hl-blue: light-dark(#d9e6f2, #263c53);
 }
 
 :root.light {
@@ -289,15 +304,19 @@ body::after {
  *
  * 底層仍是 blockquote，所以不支援的編輯器至少會顯示成引用而不是亂碼。
  */
+/*
+ * 底色只有 6%：這四種框在一篇筆記裡會出現很多次，飽和度一高整頁就變成
+ * 彩色 dashboard。層級靠左邊那條線與標籤，不靠色塊面積。
+ */
 .markdown-body .callout {
   display: grid;
-  gap: 0.35em;
-  margin: 1.1em 0;
-  padding: 0.85em 1em;
+  gap: 0.4em;
+  margin: 1.4em 0;
+  padding: 0.9em 1.1em;
   border: 0;
-  border-left: 3px solid var(--callout-tone);
-  border-radius: 0 3px 3px 0;
-  background: color-mix(in srgb, var(--callout-tone) 8%, transparent);
+  border-left: 2px solid color-mix(in srgb, var(--callout-tone) 75%, transparent);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  background: color-mix(in srgb, var(--callout-tone) 6%, transparent);
   color: inherit;
 }
 
@@ -361,13 +380,24 @@ body::after {
  * 所以每一級各給一個額外的訊號：h1 下面一條線、h2 前面一段短的墨藍標記、
  * h3 改用無襯線體。這樣「壹 → 一 → （一）」那種深層級才數得出來。
  */
+/*
+ * 標題節奏：上面留得比下面多很多，標題才會「屬於」它下面那一段而不是浮在中間。
+ * 第一個標題不必留上緣（由 :first-child 處理）。
+ */
 .markdown-body h1,
 .markdown-body h2,
 .markdown-body h3,
 .markdown-body h4 {
-  margin: 1.7em 0 0.6em;
+  margin: 2em 0 0.55em;
   font-weight: 600;
-  line-height: 1.35;
+  line-height: 1.4;
+}
+
+/* 標題緊接標題時不要留兩層間距 */
+.markdown-body h1 + h2,
+.markdown-body h2 + h3,
+.markdown-body h3 + h4 {
+  margin-top: 1.1em;
 }
 
 .markdown-body h1 {
@@ -406,13 +436,26 @@ body::after {
   font-size: 0.95em;
 }
 
-.markdown-body p,
+/*
+ * 段落節奏。
+ *
+ * 1.05em 的段距配 1.8 的行高，段落之間看得出斷點但不會散開 —— 法律筆記一段常常
+ * 就是一個爭點，段跟段的距離要能撐起那個界線。區塊元素（引用、表格、程式碼）
+ * 給多一點，它們本來就是獨立的東西。
+ */
+.markdown-body p {
+  margin: 1.05em 0;
+}
+
 .markdown-body ul,
-.markdown-body ol,
+.markdown-body ol {
+  margin: 1em 0;
+}
+
 .markdown-body blockquote,
 .markdown-body table,
 .markdown-body pre {
-  margin: 0.9em 0;
+  margin: 1.4em 0;
 }
 
 .markdown-body ul,
@@ -544,6 +587,16 @@ body::after {
   max-width: 100%;
   border-collapse: collapse;
   overflow-x: auto;
+}
+
+/*
+ * 表格是資料，不是內文 —— 換成無襯線、字級縮一階，跟周圍的段落分開。
+ * 法律筆記裡的表格通常是要件對照或學說比較，掃視比閱讀重要。
+ */
+.markdown-body table {
+  font-family: var(--font-sans);
+  font-size: 0.88em;
+  line-height: 1.6;
 }
 
 .markdown-body th,

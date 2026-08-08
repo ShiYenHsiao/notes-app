@@ -12,6 +12,12 @@ import { test } from "node:test";
 
 import { displayTitle, mergeNoteLists, titleFromContent } from "../src/lib/note-display.ts";
 import { batchPaths, expiryCutoff } from "../src/lib/retention.ts";
+import {
+  isFocusShortcut,
+  parseStoredFocus,
+  serializeFocus,
+  shouldExitOnEscape,
+} from "../src/lib/focus-mode.ts";
 import { classifyConflict, MAX_CONFLICT_RECOVERIES } from "../src/lib/save-conflict.ts";
 import {
   HELP_TAB_ID,
@@ -193,4 +199,65 @@ test("釘選的排在最前面，其餘按修改時間新到舊", () => {
     merged.map((item) => item.id),
     ["釘選但舊", "新", "舊"],
   );
+});
+
+// ---------------------------------------------------------------- 專注模式
+
+test("⌘⇧F／Ctrl+Shift+F 進出專注模式", () => {
+  assert.equal(isFocusShortcut({ key: "f", metaKey: true, shiftKey: true }), true);
+  assert.equal(isFocusShortcut({ key: "F", metaKey: true, shiftKey: true }), true);
+  assert.equal(isFocusShortcut({ key: "f", ctrlKey: true, shiftKey: true }), true);
+});
+
+test("不跟既有快捷鍵撞號", () => {
+  /*
+   * ⌘F 是 CodeMirror 的搜尋。它的按鍵比對有 shift 回退，所以 ⌘⇧F 也會打開搜尋面板 ——
+   * 因此這組鍵是在捕獲階段攔下的（見 workspace-focus.tsx），這裡只驗比對本身。
+   */
+  assert.equal(isFocusShortcut({ key: "f", metaKey: true }), false);
+  // 其他 ⌘⇧ 組合是粗體／程式碼區塊／備註框那些
+  assert.equal(isFocusShortcut({ key: "c", metaKey: true, shiftKey: true }), false);
+  assert.equal(isFocusShortcut({ key: "m", metaKey: true, shiftKey: true }), false);
+  // 單獨的 f、加 alt 的都不算
+  assert.equal(isFocusShortcut({ key: "f" }), false);
+  assert.equal(isFocusShortcut({ key: "f", metaKey: true, shiftKey: true, altKey: true }), false);
+});
+
+test("ESC 在沒有浮層時才退出專注模式", () => {
+  const base = { key: "Escape", defaultPrevented: false, hasOverlay: false, focused: true };
+  assert.equal(shouldExitOnEscape(base), true);
+});
+
+test("ESC 先讓上層的東西處理", () => {
+  const base = { key: "Escape", defaultPrevented: false, hasOverlay: false, focused: true };
+  // 選單、對話框、tooltip 開著
+  assert.equal(shouldExitOnEscape({ ...base, hasOverlay: true }), false);
+  // CodeMirror 已經吃掉這次按鍵（自動完成、或「ESC 再 Tab」的無障礙出口）
+  assert.equal(shouldExitOnEscape({ ...base, defaultPrevented: true }), false);
+});
+
+test("不在專注模式時 ESC 什麼都不做", () => {
+  assert.equal(
+    shouldExitOnEscape({
+      key: "Escape",
+      defaultPrevented: false,
+      hasOverlay: false,
+      focused: false,
+    }),
+    false,
+  );
+});
+
+test("其他按鍵不會退出專注模式", () => {
+  assert.equal(
+    shouldExitOnEscape({ key: "Enter", defaultPrevented: false, hasOverlay: false, focused: true }),
+    false,
+  );
+});
+
+test("專注狀態存得回來，存壞了當作沒有", () => {
+  assert.equal(parseStoredFocus(serializeFocus(true)), true);
+  assert.equal(parseStoredFocus(serializeFocus(false)), false);
+  assert.equal(parseStoredFocus(null), false);
+  assert.equal(parseStoredFocus("是"), false);
 });

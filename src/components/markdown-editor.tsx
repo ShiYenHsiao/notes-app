@@ -5,7 +5,8 @@ import { markdown } from "@codemirror/lang-markdown";
 import { redo, undo } from "@codemirror/commands";
 import { languages } from "@codemirror/language-data";
 import { autocompletion } from "@codemirror/autocomplete";
-import { indentUnit } from "@codemirror/language";
+import { HighlightStyle, indentUnit, syntaxHighlighting } from "@codemirror/language";
+import { tags } from "@lezer/highlight";
 import { EditorState, Prec, RangeSetBuilder, type Text } from "@codemirror/state";
 import { basicSetup, EditorView } from "codemirror";
 import {
@@ -120,6 +121,9 @@ export function MarkdownEditor({
 
           // 巢狀清單一層兩格。四格在中文行裡縮得太兇，一層就吃掉半行。
           indentUnit.of(INDENT_UNIT),
+
+          // Prec.high 才蓋得過 basicSetup 自己那份預設配色
+          Prec.high(syntaxHighlighting(syntax)),
 
           indentGuides,
 
@@ -720,13 +724,38 @@ function columnsBefore(doc: Text, lineNumber: number): number | null {
   return null;
 }
 
+/**
+ * 語法上色。
+ *
+ * 這是「編輯器看起來像 NEXUM 而不是像 IDE」最關鍵的一段：**把 Markdown 的符號
+ * 壓下去，把內容留在前面**。`#`、`**`、`==`、`>`、`-` 這些是排版指令而不是內容，
+ * 使用者要讀的是後面那句話。
+ *
+ * 顏色全部走主題變數，深淺色自動跟著換。標題與粗體只靠字重與字色分層，
+ * 不上彩色 —— 這裡是拿來寫法律筆記的，不是拿來看語法糖的。
+ */
+const syntax = HighlightStyle.define([
+  // 所有的標記符號：淡到剛好還看得見
+  { tag: tags.processingInstruction, color: "var(--syntax-mark)" },
+  { tag: tags.heading, color: "var(--ink)", fontWeight: "600" },
+  { tag: tags.strong, color: "var(--ink)", fontWeight: "600" },
+  { tag: tags.emphasis, color: "var(--ink)", fontStyle: "italic" },
+  { tag: tags.link, color: "var(--accent)" },
+  { tag: tags.url, color: "color-mix(in srgb, var(--accent) 65%, var(--ink-muted))" },
+  { tag: tags.quote, color: "var(--ink-muted)" },
+  { tag: tags.monospace, color: "var(--ink)" },
+  { tag: tags.list, color: "var(--syntax-mark)" },
+  { tag: tags.strikethrough, color: "var(--ink-muted)", textDecoration: "line-through" },
+]);
+
 /** 讓 CodeMirror 用主題的 CSS 變數，深淺色才會跟著換。 */
 const theme = EditorView.theme({
   "&": {
     height: "100%",
     backgroundColor: "var(--surface)",
     color: "var(--ink)",
-    fontSize: "14px",
+    // 15px：這裡打的是中文，不是程式碼。14px 的中文長時間看會累。
+    fontSize: "15px",
   },
   "&.cm-focused": {
     outline: "none",
@@ -734,13 +763,16 @@ const theme = EditorView.theme({
   /*
    * 原始語法也是拿來讀的，所以跟預覽區一樣鎖行寬：大螢幕上整行拉到 1200px
    * 只會讓眼睛從行尾找不回行首。留白給得比預覽區少一點 —— 這裡還要放行號。
+   *
+   * 寬度走 CSS 變數，只有編輯區時（純寫作模式）外層會把它放寬到 58rem。
    */
   ".cm-content": {
-    maxWidth: "78ch",
+    maxWidth: "var(--editor-measure, 74ch)",
     margin: "0 auto",
     fontFamily: "var(--font-mono, ui-monospace), monospace",
     padding: "1.75rem 0",
-    lineHeight: "1.75",
+    // 中文行距要比程式碼寬一點才好讀
+    lineHeight: "1.85",
   },
   ".cm-line": {
     padding: "0 1.25rem",
@@ -758,13 +790,28 @@ const theme = EditorView.theme({
     backgroundOrigin: "content-box",
     backgroundClip: "content-box",
   },
+  /*
+   * 行號：窄一點、淡一點。它是輔助資訊，不該跟正文搶視線 ——
+   * 這是筆記編輯器，不是 IDE。
+   */
   ".cm-gutters": {
+    minWidth: "2.25rem",
+    paddingRight: "0.25rem",
     backgroundColor: "var(--surface)",
-    color: "var(--ink-muted)",
+    color: "color-mix(in srgb, var(--ink-muted) 45%, transparent)",
     border: "none",
+    fontSize: "11px",
   },
+  ".cm-lineNumbers .cm-gutterElement": {
+    padding: "0 0.35rem 0 0.5rem",
+    minWidth: "auto",
+  },
+  /*
+   * 游標所在行。原本用墨藍 6%，在一整片暖白裡是一條藍帶，很吵。
+   * 改成幾乎看不見的暖灰 —— 它只要回答「我在哪一行」，不需要被看見。
+   */
   ".cm-activeLine": {
-    backgroundColor: "color-mix(in srgb, var(--accent) 6%, transparent)",
+    backgroundColor: "color-mix(in srgb, var(--ink) 3.5%, transparent)",
   },
   ".cm-activeLineGutter": {
     backgroundColor: "transparent",
@@ -772,6 +819,7 @@ const theme = EditorView.theme({
   },
   ".cm-cursor": {
     borderLeftColor: "var(--accent)",
+    borderLeftWidth: "2px",
   },
   "&.cm-focused .cm-selectionBackground, .cm-selectionBackground, ::selection": {
     backgroundColor: "var(--accent-soft)",

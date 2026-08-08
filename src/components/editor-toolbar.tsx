@@ -41,7 +41,7 @@ export function EditorToolbar({
   onOpenImagePicker: () => void;
 }) {
   return (
-    <div className="flex h-11 shrink-0 flex-wrap items-center gap-0.5 border-b border-line px-2">
+    <div className="flex h-11 shrink-0 flex-wrap items-center gap-0.5 border-b border-line px-2.5">
       <Button label="復原" shortcut="⌘Z" onClick={() => api.current?.undo()}>
         <IconUndo />
       </Button>
@@ -180,6 +180,7 @@ function Button({
   );
 }
 
+/** 群組分隔。非常淡 —— 它只要讓眼睛停一下，不需要被看見。 */
 function Divider() {
-  return <span className="mx-1.5 h-4 w-px shrink-0 bg-line" aria-hidden />;
+  return <span className="mx-1.5 h-3.5 w-px shrink-0 bg-line/70" aria-hidden />;
 }

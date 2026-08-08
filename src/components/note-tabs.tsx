@@ -27,7 +27,7 @@ export function NoteTabs({ notes }: { notes: NoteSummary[] }) {
     <div
       role="tablist"
       aria-label="開啟中的筆記"
-      className="hidden h-9 shrink-0 items-stretch gap-px overflow-x-auto border-b border-line bg-rail px-1 md:flex"
+      className="hidden h-9.5 shrink-0 items-stretch gap-px overflow-x-auto border-b border-line bg-rail/70 px-1 md:flex"
     >
       {tabs.ids.map((id) => (
         <Tab
@@ -69,8 +69,8 @@ function Tab({
     <div
       className={`group flex max-w-[190px] min-w-0 items-center gap-1.5 border-b-2 px-3 text-sm transition-colors duration-150 ${
         active
-          ? "border-b-accent bg-surface font-medium text-ink"
-          : "border-b-transparent text-ink-muted hover:bg-surface/60 hover:text-ink"
+          ? "border-b-accent bg-surface text-ink"
+          : "border-b-transparent text-ink-muted hover:bg-surface/50 hover:text-ink"
       }`}
       onContextMenu={menu.openAtPointer}
       // 中鍵關分頁，跟瀏覽器一樣

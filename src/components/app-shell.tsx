@@ -10,6 +10,7 @@ import { deleteTag, renameTag } from "@/lib/actions/tags";
 import { TAG_NAME_MAX_LENGTH, type NoteSummary, type TagSummary } from "@/lib/note-display";
 import type { ThemePreference } from "@/lib/theme";
 import { useThemePreference } from "@/lib/use-theme-preference";
+import { useFocusMode, WorkspaceFocusProvider } from "@/lib/workspace-focus";
 import { WorkspaceStatusProvider } from "@/lib/workspace-status";
 
 import { ContextMenu, useContextMenu } from "./context-menu";
@@ -42,7 +43,22 @@ export type NoteCounts = {
  * 手機是唯讀的兩層導覽，用同一份 DOM 靠 CSS 切換：沒開筆記時只顯示列表，
  * 開了筆記就只顯示內容。判斷依據是網址有沒有 /n/ 前綴。
  */
-export function AppShell({
+export function AppShell(props: {
+  counts: NoteCounts;
+  notes: NoteSummary[];
+  tags: TagSummary[];
+  children: React.ReactNode;
+}) {
+  return (
+    <WorkspaceFocusProvider>
+      <WorkspaceStatusProvider>
+        <Shell {...props} />
+      </WorkspaceStatusProvider>
+    </WorkspaceFocusProvider>
+  );
+}
+
+function Shell({
   counts,
   notes,
   tags,
@@ -59,6 +75,16 @@ export function AppShell({
 
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const usedTags = tags.filter((tag) => tag.count > 0);
+  const { focused } = useFocusMode();
+
+  /*
+   * 專注模式把導覽收起來，但**不卸載**它們。
+   *
+   * 卸載會丟掉列表的捲動位置，而且退出時整棵樹重新掛載，編輯器也會跟著重建 ——
+   * 游標與捲動位置就沒了。改成寬度收到 0 並淡出，狀態全部留在原地，
+   * 退出時什麼都不用還原。
+   */
+  const hidden = "w-0 -translate-x-2 opacity-0 pointer-events-none border-r-0";
 
   // ⌘\ 收合側邊欄。兩欄都收起來就是專注模式。
   useEffect(() => {
@@ -80,18 +106,23 @@ export function AppShell({
         滑上去有 tooltip。整條消失的話，收合狀態下想切到垃圾桶只能靠記網址。
       */}
       <aside
-        className={`hidden shrink-0 flex-col border-r border-line bg-rail pb-3 transition-[width] duration-200 lg:flex ${
-          sidebarOpen ? "w-[220px] px-3" : "w-[60px] px-2"
+        aria-hidden={focused || undefined}
+        className={`hidden shrink-0 flex-col overflow-hidden border-r border-line bg-rail pb-3 transition-[width,opacity,transform] duration-200 ease-out lg:flex ${
+          focused
+            ? hidden
+            : sidebarOpen
+              ? "w-[clamp(196px,15vw,208px)] px-3"
+              : "w-[58px] px-2"
         }`}
       >
         <div
-          className={`flex h-16 shrink-0 items-center gap-2.5 ${sidebarOpen ? "" : "justify-center"}`}
+          className={`flex h-14 shrink-0 items-center gap-2.5 ${sidebarOpen ? "" : "justify-center"}`}
         >
           <NexumBadge size={sidebarOpen ? 32 : 30} />
           {sidebarOpen ? <NexumWordmark /> : null}
         </div>
 
-        <form action={createNote} className="pb-2">
+        <form action={createNote} className="pb-1.5">
           <SidebarAction
             label="新增筆記"
             icon={<IconPlus size={17} />}
@@ -108,7 +139,7 @@ export function AppShell({
         />
 
         {/* 中段獨立捲動：標籤再多也不會把下面的方案卡與設定推出畫面 */}
-        <div className="mt-2 min-h-0 flex-1 overflow-y-auto">
+        <div className="mt-3 min-h-0 flex-1 overflow-y-auto">
           <nav className="grid gap-0.5">
             {/* 釘選是網址上的篩選條件，讀它需要 useSearchParams，所以要有 Suspense 邊界 */}
             <Suspense fallback={null}>
@@ -142,11 +173,11 @@ export function AppShell({
           */}
           {sidebarOpen ? (
             <>
-              <div className="mt-6 px-2 pb-1.5">
+              <div className="mt-5 px-2.5 pb-1">
                 <span className="eyebrow">標籤</span>
               </div>
               {usedTags.length === 0 ? (
-                <p className="px-2 text-sm text-ink-muted">還沒有標籤</p>
+                <p className="px-2.5 text-xs text-ink-muted">還沒有標籤</p>
               ) : (
                 <nav className="grid gap-0.5">
                   <Suspense fallback={null}>
@@ -180,9 +211,10 @@ export function AppShell({
       </aside>
 
       <section
-        className={`w-full shrink-0 flex-col border-r border-line bg-list md:flex md:w-[300px] ${
+        aria-hidden={focused || undefined}
+        className={`w-full shrink-0 flex-col overflow-hidden border-r border-line bg-list transition-[width,opacity,transform] duration-200 ease-out md:flex ${
           noteOpen ? "hidden" : "flex"
-        }`}
+        } ${focused ? `md:w-0 ${hidden}` : "md:w-[clamp(244px,21vw,268px)]"}`}
       >
         {/* useSearchParams 需要 Suspense 邊界 */}
         <Suspense fallback={<div className="flex-1" />}>
@@ -200,16 +232,11 @@ export function AppShell({
         </form>
       </section>
 
-      {/*
-        分頁列與編輯區共用一個 provider：編輯區把存檔狀態往上報，分頁列才知道
-        哪一篇還沒存。兩邊不需要互相認識。
-      */}
-      <WorkspaceStatusProvider>
-        <main className={`flex-1 flex-col overflow-hidden md:flex ${noteOpen ? "flex" : "hidden"}`}>
-          <NoteTabs notes={notes} />
-          <div className="min-h-0 flex-1">{children}</div>
-        </main>
-      </WorkspaceStatusProvider>
+      <main className={`flex-1 flex-col overflow-hidden md:flex ${noteOpen ? "flex" : "hidden"}`}>
+        {/* 專注模式收起分頁列：現在只有一篇筆記重要 */}
+        {focused ? null : <NoteTabs notes={notes} />}
+        <div className="min-h-0 flex-1">{children}</div>
+      </main>
     </div>
   );
 }
@@ -371,7 +398,7 @@ function RailLink({
       } ${
         active
           ? "bg-accent-soft font-medium text-accent"
-          : "text-ink hover:bg-accent-soft/50 hover:text-ink"
+          : "text-ink hover:bg-accent-soft/40"
       }`}
     >
       {active ? (
@@ -384,8 +411,11 @@ function RailLink({
       {compact ? null : (
         <>
           <span className="truncate">{label}</span>
+          {/* 計數是參考資訊，壓到最輕 —— 它不該跟項目名稱競爭 */}
           {count === undefined ? null : (
-            <span className="ml-auto shrink-0 text-xs text-ink-muted tabular-nums">{count}</span>
+            <span className="ml-auto shrink-0 text-2xs text-ink-muted/70 tabular-nums">
+              {count}
+            </span>
           )}
         </>
       )}
