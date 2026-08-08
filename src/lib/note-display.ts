@@ -62,6 +62,30 @@ export function titleFromContent(content: string): string | null {
   return firstLine.replace(/^#{1,6}[ \t]*/, "").trim() || null;
 }
 
+/**
+ * 把幾份查詢結果併成一份列表：去掉重複，然後照列表的排序規則排。
+ *
+ * 排序跟 SQL 那邊一致 —— 釘選的在最前面，其餘按修改時間新到舊。搜尋要同時比對內文與
+ * 標籤名稱，那是兩個查詢（標籤名在另一張表，硬湊成一句 SQL 要處理 PostgREST 的
+ * `or()` 跳脫，使用者打個逗號就會壞掉），所以在這裡合併。
+ */
+export function mergeNoteLists(...lists: NoteSummary[][]): NoteSummary[] {
+  const byId = new Map<string, NoteSummary>();
+
+  for (const list of lists) {
+    for (const note of list) {
+      byId.set(note.id, note);
+    }
+  }
+
+  return [...byId.values()].sort((a, b) => {
+    if (a.pinned !== b.pinned) {
+      return a.pinned ? -1 : 1;
+    }
+    return b.updated_at.localeCompare(a.updated_at);
+  });
+}
+
 /** 列表與編輯區共用的標題顯示規則：沒有標題就退回摘要，再沒有就顯示「無標題」。 */
 export function displayTitle(note: { title: string | null; excerpt?: string }): string {
   if (note.title) {

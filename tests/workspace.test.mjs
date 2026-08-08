@@ -10,7 +10,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { displayTitle, titleFromContent } from "../src/lib/note-display.ts";
+import { displayTitle, mergeNoteLists, titleFromContent } from "../src/lib/note-display.ts";
 import { batchPaths, expiryCutoff } from "../src/lib/retention.ts";
 import { classifyConflict, MAX_CONFLICT_RECOVERIES } from "../src/lib/save-conflict.ts";
 import {
@@ -145,4 +145,52 @@ test("連續恢復到上限就停手，不要無限重試", () => {
   const input = { current: "已存的內容", lastSaved: "已存的內容" };
   assert.equal(classifyConflict({ ...input, recoveries: MAX_CONFLICT_RECOVERIES - 1 }), "adopt");
   assert.equal(classifyConflict({ ...input, recoveries: MAX_CONFLICT_RECOVERIES }), "conflict");
+});
+
+// ---------------------------------------------------------------- 搜尋結果合併
+
+test("合併時去掉重複的筆記", () => {
+  const note = (id, pinned, updated) => ({
+    id,
+    title: id,
+    excerpt: "",
+    pinned,
+    updated_at: updated,
+    updated_label: "",
+    tags: [],
+  });
+
+  // 內文與標籤都命中的那一篇只會出現一次
+  const merged = mergeNoteLists(
+    [note("a", false, "2026-08-01T00:00:00Z")],
+    [note("a", false, "2026-08-01T00:00:00Z"), note("b", false, "2026-08-02T00:00:00Z")],
+  );
+
+  assert.deepEqual(
+    merged.map((item) => item.id),
+    ["b", "a"],
+  );
+});
+
+test("釘選的排在最前面，其餘按修改時間新到舊", () => {
+  const note = (id, pinned, updated) => ({
+    id,
+    title: id,
+    excerpt: "",
+    pinned,
+    updated_at: updated,
+    updated_label: "",
+    tags: [],
+  });
+
+  const merged = mergeNoteLists([
+    note("舊", false, "2026-08-01T00:00:00Z"),
+    note("新", false, "2026-08-03T00:00:00Z"),
+    note("釘選但舊", true, "2026-07-01T00:00:00Z"),
+  ]);
+
+  assert.deepEqual(
+    merged.map((item) => item.id),
+    ["釘選但舊", "新", "舊"],
+  );
 });

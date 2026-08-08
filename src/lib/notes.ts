@@ -1,8 +1,8 @@
 import "server-only";
 
-import type { NoteDetail, NoteSummary } from "@/lib/note-display";
+import { mergeNoteLists, type NoteDetail, type NoteSummary } from "@/lib/note-display";
 import { createClient } from "@/lib/supabase/server";
-import { noteIdsForTag } from "@/lib/tags";
+import { noteIdsForTag, noteIdsForTagSearch } from "@/lib/tags";
 
 export type { NoteDetail, NoteSummary };
 
@@ -124,8 +124,8 @@ async function tagNamesByNote(noteIds: string[]): Promise<Map<string, string[]>>
 /**
  * 筆記列表。`query` 有值時做全文搜尋。
  *
- * 搜尋只比對 content —— title 是從內文第一行推導出來的，本來就是 content 的子字串，
- * 另外再比一次沒有意義，還要處理 PostgREST 的 or 語法跳脫。
+ * 搜尋比對**內文與標籤名稱**。標題不用另外比 —— 它是從內文第一行推導出來的，
+ * 本來就是 content 的子字串。標籤則不在內文裡，所以要另外撈（見下面的註解）。
  */
 export async function listNotes(
   options: { query?: string; trashed?: boolean; tagId?: string; pinned?: boolean } = {},
@@ -142,39 +142,68 @@ export async function listNotes(
     }
   }
 
-  let request = supabase
-    .from("notes")
-    .select("id, title, content, pinned, updated_at")
-    .limit(LIST_LIMIT);
+  /*
+   * 每次查詢都從這裡長出來。搜尋要跑兩次（內文一次、標籤名稱一次），所以做成函式
+   * 而不是一個可變的 request 物件。
+   */
+  const base = () => {
+    let request = supabase
+      .from("notes")
+      .select("id, title, content, pinned, updated_at")
+      .limit(LIST_LIMIT);
 
-  if (tagFilterIds) {
-    request = request.in("id", tagFilterIds);
-  }
+    if (tagFilterIds) {
+      request = request.in("id", tagFilterIds);
+    }
 
-  request = options.trashed
-    ? request.not("deleted_at", "is", null).order("deleted_at", { ascending: false })
-    : request
-        .is("deleted_at", null)
-        .order("pinned", { ascending: false })
-        .order("updated_at", { ascending: false });
+    request = options.trashed
+      ? request.not("deleted_at", "is", null).order("deleted_at", { ascending: false })
+      : request
+          .is("deleted_at", null)
+          .order("pinned", { ascending: false })
+          .order("updated_at", { ascending: false });
 
-  if (options.pinned) {
-    request = request.eq("pinned", true);
-  }
+    if (options.pinned) {
+      request = request.eq("pinned", true);
+    }
+
+    return request;
+  };
 
   const query = options.query?.trim();
-  if (query) {
-    request = request.ilike("content", `%${escapeLikePattern(query)}%`);
+
+  if (!query) {
+    return toSummaries(await run(base()));
   }
 
+  /*
+   * 搜尋同時比對內文與標籤名稱。
+   *
+   * 兩個查詢再在 JS 這邊合併，不硬湊成一句 `or()` —— PostgREST 的 or 語法裡逗號與括號
+   * 有意義，使用者搜尋字串裡打一個逗號就會壞掉，而跳脫規則跟 ILIKE 的又不一樣。
+   * 搜尋本來就不是熱路徑，多一次查詢換掉一整類跳脫問題很划算。
+   */
+  const taggedIds = await noteIdsForTagSearch(query);
+
+  const [byContent, byTag] = await Promise.all([
+    run(base().ilike("content", `%${escapeLikePattern(query)}%`)),
+    taggedIds.length > 0 ? run(base().in("id", taggedIds)) : Promise.resolve([]),
+  ]);
+
+  // 先併成一份再轉，標籤名稱那趟查詢才只跑一次；mergeNoteLists 會去掉重複並排序
+  return mergeNoteLists(await toSummaries([...byContent, ...byTag]));
+}
+
+async function run(request: PromiseLike<{ data: NoteRow[] | null; error: { message: string } | null }>) {
   const { data, error } = await request;
   if (error) {
     throw new Error(`讀取筆記列表失敗：${error.message}`);
   }
+  return data ?? [];
+}
 
-  const rows = data ?? [];
+async function toSummaries(rows: NoteRow[]): Promise<NoteSummary[]> {
   const tags = await tagNamesByNote(rows.map((row) => row.id));
-
   return rows.map((row) => toSummary(row, tags.get(row.id) ?? []));
 }
 

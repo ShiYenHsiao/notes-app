@@ -77,6 +77,49 @@ export async function getNoteTags(noteId: string): Promise<TagSummary[]> {
   return (data ?? []).map((tag) => ({ id: tag.id, name: tag.name, count: 0 }));
 }
 
+/**
+ * 名稱裡含有這段文字的標籤，掛在哪些筆記上。給搜尋用。
+ *
+ * 標籤搬出內文之後，搜「刑法」找不到掛了 #刑法 但內文沒提到的筆記 —— 那正是把標籤
+ * 當分類用的人最會踩到的坑。
+ */
+export async function noteIdsForTagSearch(query: string): Promise<string[]> {
+  const trimmed = query.trim();
+  if (!trimmed) {
+    return [];
+  }
+
+  const supabase = await createClient();
+
+  // ILIKE 的萬用字元要跳脫，否則搜 "50%" 會變成「以 50 開頭的任何標籤」
+  const pattern = `%${trimmed.replace(/[\\%_]/g, (char) => `\\${char}`)}%`;
+
+  const { data: tags, error: tagError } = await supabase
+    .from("tags")
+    .select("id")
+    .ilike("name", pattern);
+
+  if (tagError) {
+    throw new Error(`搜尋標籤失敗：${tagError.message}`);
+  }
+
+  const tagIds = (tags ?? []).map((tag) => tag.id);
+  if (tagIds.length === 0) {
+    return [];
+  }
+
+  const { data: links, error: linkError } = await supabase
+    .from("note_tags")
+    .select("note_id")
+    .in("tag_id", tagIds);
+
+  if (linkError) {
+    throw new Error(`讀取標籤關聯失敗：${linkError.message}`);
+  }
+
+  return [...new Set((links ?? []).map((link) => link.note_id))];
+}
+
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
