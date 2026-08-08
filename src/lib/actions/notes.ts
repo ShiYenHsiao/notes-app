@@ -130,6 +130,30 @@ export async function noteMarkdown(id: string) {
   return { filename: markdownFilename(note.title), content: note.content };
 }
 
+/**
+ * 這篇筆記現在在資料庫裡的樣子。
+ *
+ * 只在樂觀鎖對不上的時候呼叫，用來分辨「自己的 token 過期」與「真的有人改過」。
+ * 平常存檔不會多這一趟。
+ */
+export async function noteRevision(id: string) {
+  await requireUser();
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from("notes")
+    .select("content, updated_at")
+    .eq("id", id)
+    .is("deleted_at", null)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(`讀取筆記狀態失敗：${error.message}`);
+  }
+
+  return data ? { content: data.content, updatedAt: data.updated_at } : null;
+}
+
 /** 從垃圾桶還原。 */
 export async function restoreNote(id: string) {
   await requireUser();

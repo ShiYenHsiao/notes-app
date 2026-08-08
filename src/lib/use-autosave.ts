@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { saveNote } from "@/lib/actions/notes";
+import { noteRevision, saveNote } from "@/lib/actions/notes";
+import { classifyConflict } from "@/lib/save-conflict";
 
 /** 停止輸入多久之後存檔。 */
 const AUTOSAVE_DELAY_MS = 1000;
@@ -19,11 +20,21 @@ export type AutosaveState = {
   hasUnsavedChanges: boolean;
 };
 
+const CONFLICT_MESSAGE =
+  "這篇筆記在別的地方被改過了。重新整理會看到最新版本，但這裡的改動會不見。";
+
 /**
  * 自動存檔。
  *
- * 存檔時帶上前一次拿到的 updated_at 做樂觀鎖：對不上代表這篇在別的地方被改過
- * （最常見的是自己在 Mac 上開了兩個分頁），這時停下來顯示衝突，不要默默蓋掉。
+ * 存檔時帶上前一次拿到的 `updated_at` 做樂觀鎖。這裡有兩件事必須成立，缺一個都會
+ * 產生「明明只有我一個人在打字，卻一直說被別人改過」：
+ *
+ * 1. **一次只能有一個存檔在飛。** 兩次存檔帶著同一個 `updated_at` 送出去，第二次一定
+ *    撞到自己的樂觀鎖。本機看不出來（一次存檔幾十毫秒），線上一次要一秒上下，
+ *    打字打到一半按 ⌘S 就會撞到。
+ * 2. **對不上的時候要先分辨是誰改的。** 按一下釘選也會讓 `updated_at` 前進（trigger
+ *    是 for each row，不管改哪一欄），那時候內容根本沒變，卻會讓這個編輯器從此存不進去。
+ *    判斷規則在 lib/save-conflict.ts。
  */
 export function useAutosave(
   noteId: string,
@@ -56,6 +67,73 @@ export function useAutosave(
   const flushRef = useRef(false);
   const [flushToken, setFlushToken] = useState(0);
 
+  /*
+   * 存檔的排隊。
+   *
+   * savingRef 標記「現在有一個在飛」，queuedRef 記下「它回來之後還要再存一次」，
+   * queueToken 則是把那個「再存一次」丟回 effect 的方式。inFlightRef 讓卸載時的補存
+   * 可以接在在飛的那一次後面 —— 直接送會用到過期的 token，最後幾個字就不見了。
+   */
+  const savingRef = useRef(false);
+  const queuedRef = useRef(false);
+  const [queueToken, setQueueToken] = useState(0);
+  const inFlightRef = useRef<Promise<void>>(Promise.resolve());
+
+  /** 連續自動恢復的次數。存檔成功就歸零。 */
+  const recoveriesRef = useRef(0);
+
+  const runSave = useCallback(async (payload: string) => {
+    savingRef.current = true;
+    setState({ status: "saving", hasUnsavedChanges: true });
+
+    try {
+      const result = await saveNote(noteIdRef.current, payload, updatedAtRef.current);
+
+      if (result.status === "saved") {
+        updatedAtRef.current = result.updatedAt;
+        savedContentRef.current = payload;
+        recoveriesRef.current = 0;
+        setState({ status: "saved", hasUnsavedChanges: false });
+        return;
+      }
+
+      if (result.status === "conflict") {
+        const revision = await noteRevision(noteIdRef.current);
+        const verdict = classifyConflict({
+          current: revision?.content ?? null,
+          lastSaved: savedContentRef.current,
+          recoveries: recoveriesRef.current,
+        });
+
+        if (verdict === "adopt" && revision) {
+          // 沒有第二個作者，只是我們手上的 token 過期了：換上新的再存一次。
+          recoveriesRef.current += 1;
+          updatedAtRef.current = revision.updatedAt;
+          flushRef.current = true; // 不用再等一秒防抖
+          queuedRef.current = true;
+          return;
+        }
+
+        setState({
+          status: "conflict",
+          hasUnsavedChanges: true,
+          message: CONFLICT_MESSAGE,
+        });
+        return;
+      }
+
+      setState({ status: "error", hasUnsavedChanges: true, message: result.message });
+      setTimeout(() => setRetryCount((count) => count + 1), RETRY_DELAY_MS);
+    } finally {
+      savingRef.current = false;
+
+      if (queuedRef.current) {
+        queuedRef.current = false;
+        setQueueToken((token) => token + 1);
+      }
+    }
+  }, []);
+
   useEffect(() => {
     if (content === savedContentRef.current) {
       return;
@@ -66,34 +144,17 @@ export function useAutosave(
 
     setState({ status: "dirty", hasUnsavedChanges: true });
 
-    const timer = setTimeout(async () => {
-      setState({ status: "saving", hasUnsavedChanges: true });
-
-      const result = await saveNote(noteId, content, updatedAtRef.current);
-
-      if (result.status === "saved") {
-        updatedAtRef.current = result.updatedAt;
-        savedContentRef.current = content;
-        setState({ status: "saved", hasUnsavedChanges: false });
+    const timer = setTimeout(() => {
+      if (savingRef.current) {
+        // 上一次還沒回來。等它結束再排一次 —— 那時才拿得到新的 updated_at。
+        queuedRef.current = true;
         return;
       }
-
-      if (result.status === "conflict") {
-        // 衝突不自動重試 —— 重試只會用這邊的內容蓋掉對方，那正是要避免的事。
-        setState({
-          status: "conflict",
-          hasUnsavedChanges: true,
-          message: "這篇筆記在別的地方被改過了。重新整理會看到最新版本，但這裡的改動會不見。",
-        });
-        return;
-      }
-
-      setState({ status: "error", hasUnsavedChanges: true, message: result.message });
-      setTimeout(() => setRetryCount((count) => count + 1), RETRY_DELAY_MS);
+      inFlightRef.current = runSave(content);
     }, delay);
 
     return () => clearTimeout(timer);
-  }, [content, noteId, retryCount, flushToken]);
+  }, [content, noteId, retryCount, flushToken, queueToken, runSave]);
 
   /*
    * 卸載時補存。
@@ -101,22 +162,27 @@ export function useAutosave(
    * 打完字後一秒內切到別篇筆記，元件就卸載了，上面那個計時器會被清掉，
    * 那次修改永遠不會寫進資料庫。beforeunload 只擋得住關分頁，擋不住站內切換。
    *
-   * 依賴陣列刻意留空：這個 effect 只該在真正卸載時跑一次，
-   * 需要的值全部從 ref 讀，所以不需要列進依賴。
+   * 接在 inFlightRef 後面而不是直接送：如果那時候還有一次存檔在飛，直接送會用到
+   * 過期的 updated_at 而被樂觀鎖擋下來，最後幾個字就這樣沒了。ref 在卸載後仍然活著，
+   * 所以在飛的那一次回來時會把新的 token 寫進去，接著跑的補存就拿得到。
+   *
+   * 依賴陣列刻意留空：這個 effect 只該在真正卸載時跑一次。
    */
   useEffect(() => {
     return () => {
-      /*
-       * lint 會警告「ref 的值到 cleanup 執行時可能已經變了」——
-       * 這裡要的正是卸載當下的值，不是 effect 建立時的值，所以刻意這樣讀。
-       */
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-      const pending = latestContent?.current ?? contentRef.current;
+      void inFlightRef.current.then(() => {
+        /*
+         * lint 會警告「ref 的值到 cleanup 執行時可能已經變了」——
+         * 這裡要的正是卸載當下的值，不是 effect 建立時的值，所以刻意這樣讀。
+         */
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        const pending = latestContent?.current ?? contentRef.current;
 
-      if (pending !== savedContentRef.current) {
-        // 不 await：元件都要消失了，等不到結果，也沒有地方顯示錯誤。
-        void saveNote(noteIdRef.current, pending, updatedAtRef.current);
-      }
+        if (pending !== savedContentRef.current) {
+          // 不 await：元件都要消失了，等不到結果，也沒有地方顯示錯誤。
+          return saveNote(noteIdRef.current, pending, updatedAtRef.current);
+        }
+      });
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

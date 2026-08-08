@@ -12,6 +12,7 @@ import { test } from "node:test";
 
 import { displayTitle, titleFromContent } from "../src/lib/note-display.ts";
 import { batchPaths, expiryCutoff } from "../src/lib/retention.ts";
+import { classifyConflict, MAX_CONFLICT_RECOVERIES } from "../src/lib/save-conflict.ts";
 import {
   HELP_TAB_ID,
   nextActiveAfterClose,
@@ -117,4 +118,31 @@ test("刪檔案切成批次", () => {
   assert.deepEqual(batchPaths([], 2), []);
   // 正好整除時不會多出一個空批次
   assert.deepEqual(batchPaths(["a", "b"], 2), [["a", "b"]]);
+});
+
+// ---------------------------------------------------------------- 存檔衝突
+
+test("資料庫裡就是我們上次寫進去的內容 → 換個 token 重存", () => {
+  // 最典型的情境：編輯途中按了釘選，updated_at 前進了但內容沒變
+  assert.equal(
+    classifyConflict({ current: "已存的內容", lastSaved: "已存的內容", recoveries: 0 }),
+    "adopt",
+  );
+});
+
+test("內容跟我們寫的不一樣 → 真的有人改過，停下來", () => {
+  assert.equal(
+    classifyConflict({ current: "別人改的內容", lastSaved: "已存的內容", recoveries: 0 }),
+    "conflict",
+  );
+});
+
+test("筆記不見了就不要重存", () => {
+  assert.equal(classifyConflict({ current: null, lastSaved: "已存的內容", recoveries: 0 }), "conflict");
+});
+
+test("連續恢復到上限就停手，不要無限重試", () => {
+  const input = { current: "已存的內容", lastSaved: "已存的內容" };
+  assert.equal(classifyConflict({ ...input, recoveries: MAX_CONFLICT_RECOVERIES - 1 }), "adopt");
+  assert.equal(classifyConflict({ ...input, recoveries: MAX_CONFLICT_RECOVERIES }), "conflict");
 });
