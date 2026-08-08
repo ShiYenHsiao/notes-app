@@ -28,6 +28,7 @@ import {
 } from "../src/lib/indent-rules.ts";
 import { calloutBlock } from "../src/lib/callouts.ts";
 import { headingAnchorId, parseOutline } from "../src/lib/outline.ts";
+import { mapScroll } from "../src/lib/scroll-sync.ts";
 import { rehypeHighlight } from "../src/lib/rehype-highlight.ts";
 import { rehypeCallout } from "../src/lib/rehype-callout.ts";
 
@@ -369,4 +370,55 @@ test("index 是出現順序，預覽區的錨點靠它對應", () => {
     [0, 1, 2],
   );
   assert.equal(headingAnchorId(2), "nexum-heading-2");
+});
+
+// ---------------------------------------------------------------- 捲動同步
+
+test("沒有標題時退回等比例", () => {
+  const at = (sourceTop) =>
+    mapScroll({ anchors: [], sourceTop, sourceMax: 1000, targetMax: 500 });
+
+  assert.equal(at(0), 0);
+  assert.equal(at(500), 250);
+  assert.equal(at(1000), 500);
+});
+
+test("標題錨點之間線性內插", () => {
+  // 左邊 200 的標題對到右邊 600 —— 同樣的內容在渲染後高得多
+  const anchors = [{ source: 200, target: 600 }];
+  const at = (sourceTop) =>
+    mapScroll({ anchors, sourceTop, sourceMax: 1000, targetMax: 2000 });
+
+  assert.equal(at(0), 0);
+  assert.equal(at(100), 300); // 頭到錨點的一半
+  assert.equal(at(200), 600); // 錨點本身，精準對齊
+  assert.equal(at(600), 1300); // 錨點到底的一半
+  assert.equal(at(1000), 2000);
+});
+
+test("捲到底一定對到底", () => {
+  const anchors = [{ source: 100, target: 900 }];
+  assert.equal(mapScroll({ anchors, sourceTop: 1000, sourceMax: 1000, targetMax: 1000 }), 1000);
+});
+
+test("捲不動的時候回 0，不會除以零", () => {
+  assert.equal(mapScroll({ anchors: [], sourceTop: 0, sourceMax: 0, targetMax: 500 }), 0);
+  assert.equal(mapScroll({ anchors: [], sourceTop: 100, sourceMax: 1000, targetMax: 0 }), 0);
+});
+
+test("超出範圍的錨點不參與內插", () => {
+  // 內容改短之後，舊的錨點可能落在 sourceMax 之外
+  const anchors = [{ source: 5000, target: 9000 }];
+  assert.equal(mapScroll({ anchors, sourceTop: 500, sourceMax: 1000, targetMax: 1000 }), 500);
+});
+
+test("兩個錨點重疊時不會除以零", () => {
+  // 連續兩個標題中間沒有內容
+  const anchors = [
+    { source: 300, target: 500 },
+    { source: 300, target: 800 },
+  ];
+  const result = mapScroll({ anchors, sourceTop: 300, sourceMax: 1000, targetMax: 2000 });
+  assert.equal(Number.isFinite(result), true);
+  assert.equal(result, 500);
 });

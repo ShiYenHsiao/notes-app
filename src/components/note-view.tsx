@@ -9,6 +9,7 @@ import { titleFromContent, type NoteDetail, type TagSummary } from "@/lib/note-d
 import { headingAnchorId, parseOutline, type OutlineItem } from "@/lib/outline";
 import { useAutosave } from "@/lib/use-autosave";
 import { useImageUpload } from "@/lib/use-image-upload";
+import { useScrollSync } from "@/lib/use-scroll-sync";
 import { useReportSaveStatus } from "@/lib/workspace-status";
 
 import { EditorToolbar } from "./editor-toolbar";
@@ -48,7 +49,10 @@ export function NoteView({
   useReportSaveStatus(note.id, save.status);
 
   const editorApi = useRef<EditorApi | null>(null);
+  const previewRef = useRef<HTMLDivElement>(null);
   const filePicker = useRef<HTMLInputElement>(null);
+  // 編輯器是動態載入的，apiRef 要等它掛好才有東西 —— 捲動同步靠這個決定何時接事件
+  const [editorReady, setEditorReady] = useState(false);
   const [uploadError, setUploadError] = useState<string>();
 
   const uploadFiles = useImageUpload(note.id, userId, {
@@ -88,6 +92,14 @@ export function NoteView({
 
   const [outlineOpen, setOutlineOpen] = useState(false);
   const outline = parseOutline(content);
+
+  useScrollSync({
+    editorApi,
+    preview: previewRef,
+    outline,
+    // 只有分割模式才有對象可以同步
+    enabled: editorReady && showEditor && showPreview,
+  });
 
   /*
    * 點大綱時兩邊一起跳：編輯器把游標移到那一行，預覽區捲到對應的標題。
@@ -227,6 +239,7 @@ export function NoteView({
               onChange={setContent}
               onFiles={uploadFiles}
               onSaveRequest={save.saveNow}
+              onReady={() => setEditorReady(true)}
               apiRef={editorApi}
             />
           </div>
@@ -234,6 +247,7 @@ export function NoteView({
 
         {showPreview ? (
           <div
+            ref={previewRef}
             className={`min-w-0 overflow-y-auto bg-paper px-8 py-8 ${
               showEditor ? "flex-1 basis-1/2" : "w-full"
             }`}

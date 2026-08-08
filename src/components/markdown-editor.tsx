@@ -58,6 +58,14 @@ export type EditorApi = {
   redo(): void;
   /** 捲到某一行並把游標放過去。大綱面板用，行號從 1 起算。 */
   revealLine(line: number): void;
+  /** 捲動容器本身。兩欄捲動同步要掛事件、也要讀寫 scrollTop。 */
+  scroller(): HTMLElement;
+  /**
+   * 某一行在捲動容器裡的高度位置。行號從 1 起算。
+   *
+   * 那一行還沒被渲染出來時回傳 null —— CodeMirror 只渲染視窗附近的行。
+   */
+  lineTop(line: number): number | null;
   focus(): void;
 };
 
@@ -66,6 +74,7 @@ export function MarkdownEditor({
   onChange,
   onFiles,
   onSaveRequest,
+  onReady,
   apiRef,
 }: {
   initialValue: string;
@@ -74,6 +83,8 @@ export function MarkdownEditor({
   onFiles?: (files: File[]) => void;
   /** 按下 Cmd+S。平常已自動存檔，這是求心安用的。 */
   onSaveRequest?: () => void;
+  /** 編輯器掛好了。apiRef 要到這時候才有東西，捲動同步靠它決定何時接事件。 */
+  onReady?: () => void;
   apiRef?: React.RefObject<EditorApi | null>;
 }) {
   const host = useRef<HTMLDivElement>(null);
@@ -82,11 +93,13 @@ export function MarkdownEditor({
   const onChangeRef = useRef(onChange);
   const onFilesRef = useRef(onFiles);
   const onSaveRef = useRef(onSaveRequest);
+  const onReadyRef = useRef(onReady);
   useEffect(() => {
     onChangeRef.current = onChange;
     onFilesRef.current = onFiles;
     onSaveRef.current = onSaveRequest;
-  }, [onChange, onFiles, onSaveRequest]);
+    onReadyRef.current = onReady;
+  }, [onChange, onFiles, onSaveRequest, onReady]);
 
   useEffect(() => {
     const element = host.current;
@@ -276,6 +289,35 @@ export function MarkdownEditor({
           redo(view);
           view.focus();
         },
+        scroller() {
+          return view.scrollDOM;
+        },
+        lineTop(number) {
+          if (number < 1 || number > view.state.doc.lines) {
+            return null;
+          }
+
+          /*
+           * 用 coordsAtPos 量真正的 DOM，不用 lineBlockAt。
+           *
+           * lineBlockAt 讀的是 CodeMirror 自己維護的高度表，而那張表在這個專案裡是錯的：
+           * 它在主題的 CSS 生效前就量過一次，之後沒有重新校正 —— documentPadding.top
+           * 停在 0（實際 28）、defaultLineHeight 停在 14（實際約 24），整份文件的高度
+           * 因此少算了四分之一。coordsAtPos 走的是 Range.getBoundingClientRect，
+           * 拿到的是畫面上真正的位置。
+           *
+           * 代價是沒渲染到的行問不出位置（回傳 null）。對捲動同步來說夠用：需要的錨點
+           * 都在視窗附近，而頭尾兩端由 mapScroll 自己補。
+           */
+          const line = view.state.doc.line(number);
+          const coords = view.coordsAtPos(line.from);
+          if (!coords) {
+            return null;
+          }
+
+          const scroller = view.scrollDOM;
+          return coords.top - scroller.getBoundingClientRect().top + scroller.scrollTop;
+        },
         revealLine(number) {
           // 行號可能來自還沒同步的內容（預覽有 120ms 的合併延遲），超出範圍就夾住
           const clamped = Math.min(Math.max(number, 1), view.state.doc.lines);
@@ -293,6 +335,8 @@ export function MarkdownEditor({
         },
       };
     }
+
+    onReadyRef.current?.();
 
     return () => {
       if (apiRef) {
