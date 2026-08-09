@@ -46,3 +46,10 @@ test("純文字首行與中文條列不會被當成重複標題吃掉", () => {
 test("Print route 會安全編碼 note id", () => {
   assert.equal(printPath("abc/測試"), "/n/abc%2F%E6%B8%AC%E8%A9%A6/print");
 });
+
+test("PDF 正文保留 Wiki Link 的可讀 title syntax", () => {
+  assert.equal(
+    printBodyContent("# 搜索票\n依 [[令狀原則]]，另參 `[[literal]]`。"),
+    "依 [[令狀原則]]，另參 `[[literal]]`。",
+  );
+});

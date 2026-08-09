@@ -14,6 +14,7 @@ import { useFocusMode, WorkspaceFocusProvider } from "@/lib/workspace-focus";
 import { WorkspaceStatusProvider } from "@/lib/workspace-status";
 
 import { ContextMenu, useContextMenu } from "./context-menu";
+import { KnowledgeIndexRepair } from "./knowledge-index-repair";
 import {
   IconBook,
   IconNotes,
@@ -29,6 +30,7 @@ import { NexumBadge, NexumWordmark } from "./logo";
 import { FOCUS_SEARCH_EVENT, NoteList } from "./note-list";
 import { NoteTabs } from "./note-tabs";
 import { PlanCard } from "./plan-card";
+import { QuickOpen } from "./quick-open";
 import { Tooltip } from "./tooltip";
 
 export type NoteCounts = {
@@ -237,6 +239,9 @@ function Shell({
         {focused ? null : <NoteTabs notes={notes} />}
         <div className="min-h-0 flex-1">{children}</div>
       </main>
+
+      <QuickOpen notes={notes} />
+      <KnowledgeIndexRepair />
     </div>
   );
 }

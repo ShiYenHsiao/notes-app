@@ -4,10 +4,23 @@ import { useEffect, useRef } from "react";
 import { markdown } from "@codemirror/lang-markdown";
 import { redo, undo } from "@codemirror/commands";
 import { languages } from "@codemirror/language-data";
-import { autocompletion, startCompletion } from "@codemirror/autocomplete";
+import {
+  autocompletion,
+  startCompletion,
+  type CompletionContext,
+  type CompletionResult,
+} from "@codemirror/autocomplete";
 import { HighlightStyle, indentUnit, syntaxHighlighting, syntaxTree } from "@codemirror/language";
 import { tags } from "@lezer/highlight";
-import { EditorState, Prec, RangeSetBuilder, type Range, type Text } from "@codemirror/state";
+import {
+  EditorState,
+  Prec,
+  RangeSetBuilder,
+  StateEffect,
+  StateField,
+  type Range,
+  type Text,
+} from "@codemirror/state";
 import { basicSetup, EditorView } from "codemirror";
 import {
   Decoration,
@@ -18,6 +31,7 @@ import {
 } from "@codemirror/view";
 import type { SyntaxNode } from "@lezer/common";
 
+import { searchKnowledgeNotes } from "@/lib/knowledge-client";
 import {
   hardBreakSuffix,
   nextChineseListMarker,
@@ -37,6 +51,15 @@ import {
 import { calloutBlock, DEFAULT_CALLOUT } from "@/lib/callouts";
 import { continueLooseOrderedList } from "@/lib/ordered-list";
 import { slashCommands } from "@/lib/slash-commands";
+import {
+  parseWikiLinks,
+  rankWikiCandidates,
+  wikiCompletionInsertion,
+  wikiCompletionQuery,
+  type WikiLinkResolution,
+  type WikiNoteCandidate,
+} from "@/lib/wiki-links";
+import { isWikiCompletionInsideCode } from "@/lib/wiki-completion";
 
 /** 螢光筆的顏色代號。省略代表黃色，寫進 Markdown 時不加後綴。 */
 export type HighlightColor = "g" | "p" | "b";
@@ -79,6 +102,8 @@ export function MarkdownEditor({
   onSaveRequest,
   onReady,
   apiRef,
+  wikiLinks,
+  searchWikiLinks = searchKnowledgeNotes,
 }: {
   initialValue: string;
   onChange: (value: string) => void;
@@ -89,20 +114,36 @@ export function MarkdownEditor({
   /** 編輯器掛好了。apiRef 要到這時候才有東西，捲動同步靠它決定何時接事件。 */
   onReady?: () => void;
   apiRef?: React.RefObject<EditorApi | null>;
+  wikiLinks: WikiLinkResolution[];
+  searchWikiLinks?: (query: string, limit: number) => Promise<WikiNoteCandidate[]>;
 }) {
   const host = useRef<HTMLDivElement>(null);
+  const editorView = useRef<EditorView | null>(null);
 
   // 用 ref 存最新的 callback，這樣它們換了也不用重建整個 editor。
   const onChangeRef = useRef(onChange);
   const onFilesRef = useRef(onFiles);
   const onSaveRef = useRef(onSaveRequest);
   const onReadyRef = useRef(onReady);
+  const searchWikiLinksRef = useRef(searchWikiLinks);
+  const wikiSearchAbort = useRef<AbortController | null>(null);
   useEffect(() => {
     onChangeRef.current = onChange;
     onFilesRef.current = onFiles;
     onSaveRef.current = onSaveRequest;
     onReadyRef.current = onReady;
-  }, [onChange, onFiles, onSaveRequest, onReady]);
+    searchWikiLinksRef.current =
+      searchWikiLinks === searchKnowledgeNotes
+        ? (query, limit) => {
+            wikiSearchAbort.current?.abort();
+            const controller = new AbortController();
+            wikiSearchAbort.current = controller;
+            return searchKnowledgeNotes(query, limit, controller.signal);
+          }
+        : searchWikiLinks;
+
+    return () => wikiSearchAbort.current?.abort();
+  }, [onChange, onFiles, onSaveRequest, onReady, searchWikiLinks]);
 
   useEffect(() => {
     const element = host.current;
@@ -110,6 +151,7 @@ export function MarkdownEditor({
       return;
     }
 
+    let wikiCompletionTimer: ReturnType<typeof setTimeout> | null = null;
     const view = new EditorView({
       parent: element,
       state: EditorState.create({
@@ -133,11 +175,16 @@ export function MarkdownEditor({
           /*
            * 斜線命令。
            *
-           * 用 override 明確指定唯一的來源。原本想改用 EditorState.languageData
+           * 用 override 明確指定這個編輯器的兩個來源。原本想改用 EditorState.languageData
            * 加一個來源（理論上比較不侵入），但實測完全不觸發，連 Ctrl-Space 也叫不出來。
-           * Markdown 本身沒有其他自動完成來源，override 掉沒有任何損失。
+           * Markdown 本身沒有其他自動完成來源，保留 Slash 與 Wiki Link 即可。
            */
-          autocompletion({ override: [slashCommands] }),
+          autocompletion({
+            override: [
+              slashCommands,
+              (context) => wikiLinkCompletions(context, searchWikiLinksRef.current),
+            ],
+          }),
 
           /*
            * 中文條列的 Enter。
@@ -197,13 +244,15 @@ export function MarkdownEditor({
               /*
                * activateOnTyping 只認 input.type；貼上、部分瀏覽器與輸入法走的 transaction
                * 不會自動查 completion source。只要這次真的插入過斜線，就在 transaction
-               * 完成後用官方 command 查一次；位置是否合法仍由 slashCommands 判斷。
+               * 完成後用官方 command 查一次；位置是否合法仍由各 source 判斷。
                */
               let insertedSlash = false;
+              let typedInput = false;
               for (const transaction of update.transactions) {
                 if (!transaction.isUserEvent("input")) {
                   continue;
                 }
+                typedInput = true;
                 transaction.changes.iterChanges((_fromA, _toA, _fromB, _toB, inserted) => {
                   if (inserted.toString().includes("/")) {
                     insertedSlash = true;
@@ -212,6 +261,25 @@ export function MarkdownEditor({
               }
               if (insertedSlash) {
                 queueMicrotask(() => startCompletion(update.view));
+              }
+
+              /*
+               * async Wiki source 在 query 改變時要重新查；CodeMirror 會丟掉舊 Promise，
+               * 這裡再做 180ms debounce，避免中文輸入每個組字 transaction 都打到 server。
+               */
+              if (typedInput && !update.view.composing) {
+                const head = update.state.selection.main.head;
+                const line = update.state.doc.lineAt(head);
+                const query = wikiCompletionQuery(update.state.sliceDoc(line.from, head));
+                if (query) {
+                  if (wikiCompletionTimer !== null) {
+                    clearTimeout(wikiCompletionTimer);
+                  }
+                  wikiCompletionTimer = setTimeout(() => {
+                    wikiCompletionTimer = null;
+                    startCompletion(update.view);
+                  }, 180);
+                }
               }
             }
           }),
@@ -278,9 +346,11 @@ export function MarkdownEditor({
           }),
 
           theme,
+          wikiResolutionField,
         ],
       }),
     });
+    editorView.current = view;
 
     const animationWindow = view.dom.ownerDocument.defaultView ?? window;
     let destroyed = false;
@@ -430,16 +500,74 @@ export function MarkdownEditor({
       if (revealFrame !== null) {
         animationWindow.cancelAnimationFrame(revealFrame);
       }
+      if (wikiCompletionTimer !== null) {
+        clearTimeout(wikiCompletionTimer);
+      }
       if (apiRef) {
         apiRef.current = null;
       }
+      editorView.current = null;
       view.destroy();
     };
     // 只在掛載時建一次。切換筆記時外層會用 key 強制重新掛載，所以不需要同步 initialValue。
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  useEffect(() => {
+    editorView.current?.dispatch({ effects: setWikiResolutions.of(wikiLinks) });
+  }, [wikiLinks]);
+
   return <div ref={host} className="h-full overflow-auto" />;
+}
+
+async function wikiLinkCompletions(
+  context: CompletionContext,
+  search: (query: string, limit: number) => Promise<WikiNoteCandidate[]>,
+): Promise<CompletionResult | null> {
+  if (!context.state.selection.main.empty) {
+    return null;
+  }
+
+  const line = context.state.doc.lineAt(context.pos);
+  const before = context.state.sliceDoc(line.from, context.pos);
+  const query = wikiCompletionQuery(before);
+  if (!query) {
+    return null;
+  }
+
+  const from = line.from + query.from;
+  if (isWikiCompletionInsideCode(context.state, context.pos)) {
+    return null;
+  }
+
+  const candidates = rankWikiCandidates(await search(query.query, 20), query.query);
+  const seen = new Set<string>();
+  const options = candidates.flatMap((candidate) => {
+    if (seen.has(candidate.title)) {
+      return [];
+    }
+    seen.add(candidate.title);
+    return [
+      {
+        label: candidate.title,
+        detail: candidate.ambiguous ? "同名，將保持未解析" : candidate.updatedLabel,
+        apply(view: EditorView) {
+          const insertion = wikiCompletionInsertion(candidate.title);
+          view.dispatch({
+            changes: { from, to: context.pos, insert: insertion },
+            selection: { anchor: from + insertion.length },
+            userEvent: "input.complete",
+          });
+        },
+      },
+    ];
+  });
+
+  return {
+    from,
+    options,
+    filter: false,
+  };
 }
 
 // ---------------------------------------------------------------- 編輯操作
@@ -830,6 +958,19 @@ const CODE_CONTEXT_NODES = new Set(["InlineCode", "FencedCode", "CodeBlock", "Co
 const EDITOR_HIGHLIGHT_PATTERN = /==([^=\n]+)==(?:\{([gpb])\})?/g;
 const CALLOUT_MARK_PATTERN = /^(\s*>\s*)\[!(KEY|PRACTICE|PITFALL|INSIGHT)\]/;
 
+const setWikiResolutions = StateEffect.define<WikiLinkResolution[]>();
+const wikiResolutionField = StateField.define<ReadonlyMap<string, WikiLinkResolution>>({
+  create: () => new Map(),
+  update(value, transaction) {
+    for (const effect of transaction.effects) {
+      if (effect.is(setWikiResolutions)) {
+        return new Map(effect.value.map((item) => [item.title, item]));
+      }
+    }
+    return value;
+  },
+});
+
 const academicDecorations = ViewPlugin.fromClass(
   class {
     decorations: DecorationSet;
@@ -839,7 +980,11 @@ const academicDecorations = ViewPlugin.fromClass(
     }
 
     update(update: ViewUpdate) {
-      if (update.docChanged || update.viewportChanged) {
+      if (
+        update.docChanged ||
+        update.viewportChanged ||
+        update.startState.field(wikiResolutionField) !== update.state.field(wikiResolutionField)
+      ) {
         this.decorations = buildAcademicDecorations(update.view);
       }
     }
@@ -891,10 +1036,34 @@ function buildAcademicDecorations(view: EditorView): DecorationSet {
       decorateChineseListMarker(line.from, line.text, ranges);
       decorateEditorHighlights(line.from, line.text, tree, ranges);
       decorateCalloutMarker(line.from, line.text, ranges);
+      decorateWikiLinks(view, line.from, line.text, tree, ranges);
     }
   }
 
   return Decoration.set(ranges, true);
+}
+
+function decorateWikiLinks(
+  view: EditorView,
+  lineFrom: number,
+  text: string,
+  tree: ReturnType<typeof syntaxTree>,
+  ranges: Range<Decoration>[],
+) {
+  const resolutions = view.state.field(wikiResolutionField);
+  for (const link of parseWikiLinks(text)) {
+    const from = lineFrom + link.from;
+    const to = lineFrom + link.to;
+    if (isCodeContext(tree.resolveInner(Math.max(from, to - 1), -1))) {
+      continue;
+    }
+    const status = resolutions.get(link.title)?.status ?? "unresolved";
+    ranges.push(
+      Decoration.mark({
+        class: `cm-wikiLink cm-wikiLink-${status}`,
+      }).range(from, to),
+    );
+  }
 }
 
 function decorateChineseListMarker(
@@ -1146,6 +1315,18 @@ const theme = EditorView.theme({
   },
   ".cm-calloutMark-insight": {
     color: "var(--insight)",
+  },
+  ".cm-wikiLink": {
+    borderRadius: "2px",
+    color: "var(--reference)",
+    textDecoration: "underline",
+    textDecorationColor: "color-mix(in srgb, var(--reference) 42%, transparent)",
+    textUnderlineOffset: "0.2em",
+  },
+  ".cm-wikiLink-unresolved, .cm-wikiLink-ambiguous": {
+    color: "var(--ink-muted)",
+    textDecorationStyle: "dashed",
+    textDecorationColor: "color-mix(in srgb, var(--ink-muted) 55%, transparent)",
   },
 
   // 斜線命令的選單。預設是系統灰底，跟整體不搭。

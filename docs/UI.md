@@ -169,6 +169,17 @@
 - 引用：淡墨藍底 + 左線（法律筆記裡引用通常是判決或條文原文）
 - 表格改無襯線縮一階字（那是拿來掃的資料）
 - 備註框底色只有 6%，層級靠左線與標籤，不靠色塊面積
+- Wiki Link resolved 沿用低飽和 reference blue；unresolved／ambiguous 改淡並用虛線底線，
+  不使用紅色錯誤態。Linked References 放在正文末端，合併同一來源，不做無限展開
+
+### Quick Open 與 Wiki Link 浮層
+
+- `⌘P` 使用中央、窄幅 command palette：暖白 surface、1px line、`shadow-pop`、3px 圓角
+- active option 用 accent-soft＋墨藍，不新增高飽和 command 顏色
+- Wiki autocomplete 共用 CodeMirror 既有 completion menu；Slash Command 與 Wiki source
+  並列在同一個 autocompletion extension，不建立第二個 tooltip system
+- unresolved Quick Create 是確認 dialog；清楚顯示精確 title，同名時只解釋限制、不提供任選按鈕
+- PDF 把 Wiki Link 渲染成純文字 span，不輸出 Quick Create、tooltip 或 app click handler
 
 ### PDF Print Preview
 

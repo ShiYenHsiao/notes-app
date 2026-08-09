@@ -2,9 +2,13 @@
 
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 
+import { quickCreateKnowledgeNote } from "@/lib/actions/knowledge";
+import { resolveKnowledgeLinks } from "@/lib/knowledge-client";
 import { togglePin, trashNote } from "@/lib/actions/notes";
+import type { BacklinkItem } from "@/lib/knowledge";
 import { titleFromContent, type NoteDetail, type TagSummary } from "@/lib/note-display";
 import { headingAnchorId, parseOutline, type OutlineItem } from "@/lib/outline";
 import { printPath } from "@/lib/print-export";
@@ -14,6 +18,11 @@ import { useImageUpload } from "@/lib/use-image-upload";
 import { useScrollSync } from "@/lib/use-scroll-sync";
 import { useFocusMode } from "@/lib/workspace-focus";
 import { useReportSaveStatus } from "@/lib/workspace-status";
+import {
+  uniqueWikiTitles,
+  replaceMarkdownTitle,
+  type WikiLinkResolution,
+} from "@/lib/wiki-links";
 
 import { ContextMenu, useContextMenu } from "./context-menu";
 import { EditorToolbar } from "./editor-toolbar";
@@ -46,15 +55,27 @@ export function NoteView({
   noteTags,
   allTags,
   userId,
+  initialWikiLinks,
+  backlinks,
+  backlinksError,
 }: {
   note: NoteDetail;
   noteTags: TagSummary[];
   allTags: TagSummary[];
   userId: string;
+  initialWikiLinks: WikiLinkResolution[];
+  backlinks: BacklinkItem[];
+  backlinksError: string | null;
 }) {
   const [content, setContent, latestContent] = useCoalescedState(note.content);
   const save = useAutosave(note.id, content, note.updated_at, latestContent);
   const isDesktop = useIsDesktop();
+  const router = useRouter();
+  const wikiLinks = useWikiLinkResolutions(content, initialWikiLinks);
+  const [pendingWikiTitle, setPendingWikiTitle] = useState<{
+    title: string;
+    ambiguous: boolean;
+  } | null>(null);
 
   // 分頁列靠這個顯示「還沒存」的點
   useReportSaveStatus(note.id, save.status);
@@ -245,6 +266,43 @@ export function NoteView({
         </div>
       ) : null}
 
+      {save.status === "rename" && save.rename ? (
+        <div
+          role="alertdialog"
+          aria-modal="true"
+          aria-label="確認筆記改名"
+          className="fixed inset-0 z-[90] grid place-items-center bg-ink/20 p-5 backdrop-blur-[1px]"
+        >
+          <section className="w-full max-w-md rounded-sm border border-gold/25 bg-surface p-5 shadow-[var(--shadow-pop)]">
+            <p className="eyebrow">Rename Knowledge Links</p>
+            <h2 className="mt-2 font-serif text-lg font-semibold">確認筆記改名</h2>
+            <p className="mt-2 text-sm leading-relaxed text-ink-muted">
+              將「{save.rename.oldTitle}」改為「{save.rename.newTitle}」，並原子更新
+              {save.rename.sourceCount} 篇來源筆記中的精確 Wiki Link。
+            </p>
+            <div className="mt-5 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setContent(replaceMarkdownTitle(content, save.rename!.oldTitle));
+                  save.cancelRename();
+                }}
+                className="rounded-sm px-3 py-1.5 text-sm text-ink-muted hover:bg-list"
+              >
+                取消改名
+              </button>
+              <button
+                type="button"
+                onClick={save.confirmRename}
+                className="rounded-sm bg-accent px-3 py-1.5 text-sm font-medium text-white"
+              >
+                更新連結並改名
+              </button>
+            </div>
+          </section>
+        </div>
+      ) : null}
+
       {/* 只看預覽時沒有編輯器可以操作，工具列就不該佔一整條 */}
       {isDesktop && showEditor ? (
         <EditorToolbar api={editorApi} onOpenImagePicker={() => filePicker.current?.click()} />
@@ -295,6 +353,7 @@ export function NoteView({
               onSaveRequest={save.saveNow}
               onReady={() => setEditorReady(true)}
               apiRef={editorApi}
+              wikiLinks={wikiLinks}
             />
           </div>
         ) : null}
@@ -307,7 +366,19 @@ export function NoteView({
               showEditor ? "flex-1 basis-[55%] py-8" : focused ? "w-full py-16" : "w-full py-10"
             }`}
           >
-            <MarkdownPreview content={content} />
+            <MarkdownPreview
+              content={content}
+              wikiLinks={wikiLinks}
+              onOpenWikiLink={(targetId) => router.push(`/n/${targetId}`)}
+              onUnresolvedWikiLink={(wikiTitle, ambiguous) =>
+                setPendingWikiTitle({ title: wikiTitle, ambiguous })
+              }
+            />
+            <Backlinks
+              items={backlinks}
+              error={backlinksError}
+              onOpen={(sourceId) => router.push(`/n/${sourceId}`)}
+            />
           </div>
         ) : null}
 
@@ -351,8 +422,218 @@ export function NoteView({
           <SaveIndicator status={save.status} />
         </footer>
       )}
+
+      {pendingWikiTitle ? (
+        <WikiLinkDialog
+          sourceNoteId={note.id}
+          title={pendingWikiTitle.title}
+          ambiguous={pendingWikiTitle.ambiguous}
+          onClose={() => setPendingWikiTitle(null)}
+          onOpen={(targetId) => {
+            setPendingWikiTitle(null);
+            router.push(`/n/${targetId}`);
+          }}
+        />
+      ) : null}
     </div>
   );
+}
+
+function Backlinks({
+  items,
+  error,
+  onOpen,
+}: {
+  items: BacklinkItem[];
+  error: string | null;
+  onOpen: (id: string) => void;
+}) {
+  return (
+    <section className="mt-12 border-t border-line pt-6" aria-labelledby="backlinks-title">
+      <div className="mb-3 flex items-baseline justify-between gap-3">
+        <h2 id="backlinks-title" className="font-sans text-sm font-semibold text-ink">
+          Linked References
+        </h2>
+        <span className="font-sans text-2xs text-ink-muted">{items.length} 篇來源</span>
+      </div>
+
+      {error ? (
+        <p role="status" className="font-sans text-sm text-danger">
+          {error}
+        </p>
+      ) : items.length === 0 ? (
+        <p className="font-sans text-sm text-ink-muted">目前沒有其他筆記連到這裡。</p>
+      ) : (
+        <ul className="grid gap-2.5">
+          {items.map((item) => (
+            <li key={item.sourceId}>
+              <button
+                type="button"
+                onClick={() => onOpen(item.sourceId)}
+                className="w-full rounded-sm border border-line bg-surface/55 px-3 py-2.5 text-left transition-colors hover:border-accent/35 hover:bg-accent-soft/35"
+              >
+                <b className="block truncate font-sans text-sm font-semibold text-accent">
+                  {item.sourceTitle}
+                </b>
+                {item.contexts.map((context) => (
+                  <span
+                    key={context}
+                    className="mt-1 block line-clamp-2 font-sans text-xs leading-relaxed text-ink-muted"
+                  >
+                    <BacklinkContext value={context} />
+                  </span>
+                ))}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
+
+function BacklinkContext({ value }: { value: string }) {
+  const match = /\[\[[^\]]+\]\]/.exec(value);
+  if (!match || match.index === undefined) {
+    return value;
+  }
+
+  const before = value.slice(0, match.index);
+  const after = value.slice(match.index + match[0].length);
+  return (
+    <>
+      {before}
+      <mark className="rounded-[2px] bg-accent-soft px-0.5 text-inherit">{match[0]}</mark>
+      {after}
+    </>
+  );
+}
+
+function WikiLinkDialog({
+  sourceNoteId,
+  title,
+  ambiguous,
+  onClose,
+  onOpen,
+}: {
+  sourceNoteId: string;
+  title: string;
+  ambiguous: boolean;
+  onClose: () => void;
+  onOpen: (id: string) => void;
+}) {
+  const [error, setError] = useState<string>();
+  const [pending, startTransition] = useTransition();
+
+  useEffect(() => {
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        onClose();
+      }
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [onClose]);
+
+  function create() {
+    startTransition(async () => {
+      setError(undefined);
+      const result = await quickCreateKnowledgeNote(sourceNoteId, title);
+      if (result.status === "created" || result.status === "existing") {
+        onOpen(result.noteId);
+        return;
+      }
+      setError("message" in result ? result.message : "建立筆記失敗。");
+    });
+  }
+
+  return (
+    <div
+      className="absolute inset-0 z-50 grid place-items-center bg-ink/15 p-5 backdrop-blur-[1px]"
+      role="presentation"
+      onMouseDown={(event) => {
+        if (event.currentTarget === event.target) {
+          onClose();
+        }
+      }}
+    >
+      <section
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="wiki-create-title"
+        className="w-full max-w-sm rounded-sm border border-line bg-surface p-5 shadow-[var(--shadow-pop)]"
+      >
+        <p className="eyebrow">Knowledge Link</p>
+        <h2 id="wiki-create-title" className="mt-2 font-serif text-lg font-semibold">
+          {ambiguous ? "同名筆記無法解析" : "建立連結目標？"}
+        </h2>
+        <p className="mt-2 text-sm leading-relaxed text-ink-muted">
+          {ambiguous
+            ? `「${title}」目前對應多篇筆記。v1 的 [[Title]] 沒有 id 或 alias，不能安全地任選其中一篇。`
+            : `目前找不到「${title}」。確認後會建立一篇以此為標題的新筆記，原 Markdown 不會改成 UUID。`}
+        </p>
+        {error ? <p className="mt-3 text-sm text-danger">{error}</p> : null}
+        <div className="mt-5 flex justify-end gap-2">
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-sm px-3 py-1.5 text-sm text-ink-muted hover:bg-list"
+          >
+            關閉
+          </button>
+          {!ambiguous ? (
+            <button
+              type="button"
+              onClick={create}
+              disabled={pending}
+              className="rounded-sm bg-accent px-3 py-1.5 text-sm font-medium text-white disabled:opacity-55"
+            >
+              {pending ? "建立中…" : `建立「${title}」`}
+            </button>
+          ) : null}
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function useWikiLinkResolutions(
+  content: string,
+  initial: WikiLinkResolution[],
+): WikiLinkResolution[] {
+  const [resolutions, setResolutions] = useState(initial);
+  const request = useRef(0);
+  const abort = useRef<AbortController | null>(null);
+  const titles = uniqueWikiTitles(content);
+  const key = titles.join("\u0000");
+
+  useEffect(() => {
+    const requestId = ++request.current;
+    const timer = setTimeout(() => {
+      abort.current?.abort();
+      const controller = new AbortController();
+      abort.current = controller;
+      void resolveKnowledgeLinks(titles, controller.signal)
+        .then((next) => {
+          if (request.current === requestId) {
+            setResolutions(next);
+          }
+        })
+        .catch(() => {
+          // 正文與 autosave 不依賴解析查詢；暫時保留上一份狀態即可。
+        });
+    }, 250);
+
+    return () => {
+      clearTimeout(timer);
+      abort.current?.abort();
+    };
+    // key 是集中正規化後的 title set；普通輸入不應重送解析請求。
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key]);
+
+  return resolutions;
 }
 
 /**
@@ -505,6 +786,7 @@ const STATUS_LABELS = {
   saved: "已儲存",
   dirty: "未儲存",
   saving: "儲存中…",
+  rename: "等待確認改名",
   conflict: "有衝突，未儲存",
   error: "儲存失敗",
 } as const;

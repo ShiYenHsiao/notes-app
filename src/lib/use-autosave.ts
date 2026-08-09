@@ -11,13 +11,14 @@ const AUTOSAVE_DELAY_MS = 1000;
 /** 存檔失敗後隔多久自動重試。 */
 const RETRY_DELAY_MS = 5000;
 
-export type SaveStatus = "saved" | "dirty" | "saving" | "conflict" | "error";
+export type SaveStatus = "saved" | "dirty" | "saving" | "rename" | "conflict" | "error";
 
 export type AutosaveState = {
   status: SaveStatus;
   message?: string;
   /** 有沒有還沒寫進資料庫的改動，離開頁面前的提醒用得到。 */
   hasUnsavedChanges: boolean;
+  rename?: { oldTitle: string; newTitle: string; sourceCount: number };
 };
 
 const CONFLICT_MESSAGE =
@@ -78,22 +79,43 @@ export function useAutosave(
   const queuedRef = useRef(false);
   const [queueToken, setQueueToken] = useState(0);
   const inFlightRef = useRef<Promise<void>>(Promise.resolve());
+  const pendingRenameRef = useRef<string | null>(null);
 
   /** 連續自動恢復的次數。存檔成功就歸零。 */
   const recoveriesRef = useRef(0);
 
-  const runSave = useCallback(async (payload: string) => {
+  const runSave = useCallback(async (payload: string, confirmRename = false) => {
     savingRef.current = true;
     setState({ status: "saving", hasUnsavedChanges: true });
 
     try {
-      const result = await saveNote(noteIdRef.current, payload, updatedAtRef.current);
+      const result = await saveNote(
+        noteIdRef.current,
+        payload,
+        updatedAtRef.current,
+        confirmRename,
+      );
 
       if (result.status === "saved") {
         updatedAtRef.current = result.updatedAt;
         savedContentRef.current = payload;
         recoveriesRef.current = 0;
         setState({ status: "saved", hasUnsavedChanges: false });
+        return;
+      }
+
+      if (result.status === "rename-required") {
+        pendingRenameRef.current = payload;
+        setState({
+          status: "rename",
+          hasUnsavedChanges: true,
+          message: "改名會更新所有確定指向這篇筆記的 Wiki Link。",
+          rename: {
+            oldTitle: result.oldTitle,
+            newTitle: result.newTitle,
+            sourceCount: result.sourceCount,
+          },
+        });
         return;
       }
 
@@ -141,6 +163,7 @@ export function useAutosave(
 
     const delay = flushRef.current ? 0 : AUTOSAVE_DELAY_MS;
     flushRef.current = false;
+    pendingRenameRef.current = null;
 
     setState({ status: "dirty", hasUnsavedChanges: true });
 
@@ -203,11 +226,28 @@ export function useAutosave(
 
   const retryNow = useCallback(() => setRetryCount((count) => count + 1), []);
 
+  const confirmRename = useCallback(() => {
+    const pending = pendingRenameRef.current;
+    if (!pending || savingRef.current) {
+      return;
+    }
+    inFlightRef.current = runSave(pending, true);
+  }, [runSave]);
+
+  const cancelRename = useCallback(() => {
+    pendingRenameRef.current = null;
+    setState({
+      status: "dirty",
+      hasUnsavedChanges: true,
+      message: "改名尚未儲存。",
+    });
+  }, []);
+
   /** 立刻存檔，不等防抖。內容沒有改動時什麼都不做。 */
   const saveNow = useCallback(() => {
     flushRef.current = true;
     setFlushToken((token) => token + 1);
   }, []);
 
-  return { ...state, retryNow, saveNow };
+  return { ...state, retryNow, saveNow, confirmRename, cancelRename };
 }

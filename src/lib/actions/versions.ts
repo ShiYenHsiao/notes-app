@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 
 import { requireUser } from "@/lib/auth";
+import { rebuildNoteLinksSafely, rebuildSourcesForTitle } from "@/lib/knowledge";
 import { createClient } from "@/lib/supabase/server";
 import {
   getVersionContent,
@@ -38,7 +39,7 @@ export async function restoreVersion(
 
   const { data: current, error: readError } = await supabase
     .from("notes")
-    .select("content")
+    .select("content, title")
     .eq("id", noteId)
     .is("deleted_at", null)
     .maybeSingle();
@@ -52,11 +53,20 @@ export async function restoreVersion(
   }
 
   // 還原是使用者明確要求的動作，不套樂觀鎖 —— 這裡的意圖就是「用這份蓋過去」。
-  const { error } = await supabase.from("notes").update({ content: target }).eq("id", noteId);
+  const { data: restored, error } = await supabase
+    .from("notes")
+    .update({ content: target })
+    .eq("id", noteId)
+    .select("id, title, content, updated_at")
+    .maybeSingle();
 
-  if (error) {
-    return { status: "error", message: error.message };
+  if (error || !restored) {
+    return { status: "error", message: error?.message ?? "找不到這篇筆記。" };
   }
+
+  await rebuildNoteLinksSafely(restored);
+  await rebuildSourcesForTitle(current.title);
+  await rebuildSourcesForTitle(restored.title);
 
   revalidatePath("/", "layout");
   return { status: "restored" };

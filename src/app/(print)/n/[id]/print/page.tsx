@@ -4,6 +4,7 @@ import { cache } from "react";
 
 import { PrintPreview } from "@/components/print-preview";
 import { requireUser } from "@/lib/auth";
+import { knowledgeForContent } from "@/lib/knowledge";
 import { getNote } from "@/lib/notes";
 import { normalizePrintStyle, printDocumentTitle } from "@/lib/print-export";
 import { getNoteTags } from "@/lib/tags";
@@ -37,7 +38,10 @@ export default async function NotePrintPage({
     notFound();
   }
 
-  const tags = await getNoteTags(note.id);
+  const [tags, wikiLinks] = await Promise.all([
+    getNoteTags(note.id),
+    knowledgeForContent(note.content),
+  ]);
   const requestedStyle = (await searchParams).style;
 
   return (
@@ -50,6 +54,7 @@ export default async function NotePrintPage({
       initialStyle={normalizePrintStyle(
         Array.isArray(requestedStyle) ? requestedStyle[0] : requestedStyle,
       )}
+      wikiLinks={wikiLinks}
     />
   );
 }

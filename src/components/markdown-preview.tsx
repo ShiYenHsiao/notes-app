@@ -6,6 +6,7 @@ import remarkGfm from "remark-gfm";
 import { rehypeCallout } from "@/lib/rehype-callout";
 import { rehypeHeadingIds } from "@/lib/rehype-heading-ids";
 import { rehypeHighlight } from "@/lib/rehype-highlight";
+import { rehypeWikiLinks, type WikiLinkResolution } from "@/lib/wiki-links";
 
 /**
  * 右欄的渲染結果，手機唯讀模式也用同一個元件。
@@ -16,9 +17,17 @@ import { rehypeHighlight } from "@/lib/rehype-highlight";
 export function MarkdownPreview({
   content,
   imageLoading = "lazy",
+  wikiLinks = [],
+  interactiveWikiLinks = true,
+  onOpenWikiLink,
+  onUnresolvedWikiLink,
 }: {
   content: string;
   imageLoading?: "lazy" | "eager";
+  wikiLinks?: WikiLinkResolution[];
+  interactiveWikiLinks?: boolean;
+  onOpenWikiLink?: (noteId: string) => void;
+  onUnresolvedWikiLink?: (title: string, ambiguous: boolean) => void;
 }) {
   if (!content.trim()) {
     return <p className="text-sm text-ink-muted">還沒有內容。</p>;
@@ -29,17 +38,63 @@ export function MarkdownPreview({
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         // callout 要先跑：它會把 blockquote 換成 div，換完再讓螢光筆處理裡面的文字
-        rehypePlugins={[rehypeCallout, rehypeHighlight, rehypeHeadingIds]}
+        rehypePlugins={[
+          rehypeCallout,
+          rehypeHighlight,
+          [rehypeWikiLinks, { resolutions: wikiLinks, interactive: interactiveWikiLinks }],
+          rehypeHeadingIds,
+        ]}
         components={{
           img: ({ src, alt }) => (
             <Image src={src} alt={alt ?? ""} loading={imageLoading} />
           ),
+          a: ({ href, children, className, ...props }) => {
+            const wikiTitle = stringProperty(props, "data-wiki-title");
+            if (!wikiTitle) {
+              return (
+                <a href={href} className={className}>
+                  {children}
+                </a>
+              );
+            }
+
+            const targetId = stringProperty(props, "data-wiki-target");
+            const ambiguous = stringProperty(props, "data-wiki-status") === "ambiguous";
+            return (
+              <a
+                href={href}
+                className={className}
+                aria-label={stringProperty(props, "aria-label")}
+                data-wiki-title={wikiTitle}
+                data-wiki-target={targetId}
+                data-wiki-status={stringProperty(props, "data-wiki-status")}
+                onClick={(event) => {
+                  if (targetId) {
+                    if (onOpenWikiLink) {
+                      event.preventDefault();
+                      onOpenWikiLink(targetId);
+                    }
+                    return;
+                  }
+                  event.preventDefault();
+                  onUnresolvedWikiLink?.(wikiTitle, ambiguous);
+                }}
+              >
+                {children}
+              </a>
+            );
+          },
         }}
       >
         {content}
       </ReactMarkdown>
     </div>
   );
+}
+
+function stringProperty(properties: object, name: string): string | undefined {
+  const value = (properties as Record<string, unknown>)[name];
+  return typeof value === "string" ? value : undefined;
 }
 
 /**

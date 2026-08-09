@@ -12,6 +12,7 @@ import {
   printTags,
   type PrintStyle,
 } from "@/lib/print-export";
+import type { WikiLinkResolution } from "@/lib/wiki-links";
 
 import { MarkdownPreview } from "./markdown-preview";
 
@@ -22,6 +23,7 @@ export function PrintPreview({
   tags,
   exportedAt,
   initialStyle = "study",
+  wikiLinks,
 }: {
   noteId: string;
   title: string | null;
@@ -29,6 +31,7 @@ export function PrintPreview({
   tags: string[];
   exportedAt: string;
   initialStyle?: PrintStyle;
+  wikiLinks: WikiLinkResolution[];
 }) {
   const router = useRouter();
   const [style, setStyle] = useState<PrintStyle>(() => normalizePrintStyle(initialStyle));
@@ -96,7 +99,12 @@ export function PrintPreview({
           </header>
 
           {/* 同一個 renderer、同一組 remark/rehype pipeline；列印只換 presentation。 */}
-          <MarkdownPreview content={printBodyContent(content)} imageLoading="eager" />
+          <MarkdownPreview
+            content={printBodyContent(content)}
+            imageLoading="eager"
+            wikiLinks={wikiLinks}
+            interactiveWikiLinks={false}
+          />
 
           <footer className="print-document-footer">NEXUM NOTE</footer>
         </article>

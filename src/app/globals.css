@@ -531,6 +531,38 @@ body::after {
   text-decoration-color: currentColor;
 }
 
+.markdown-body .wiki-link {
+  border-radius: 2px;
+  font-family: var(--font-sans);
+  font-size: 0.94em;
+  font-weight: 550;
+  text-decoration-thickness: 1px;
+}
+
+.markdown-body .wiki-link-unresolved {
+  color: var(--ink-muted);
+  text-decoration-line: underline;
+  text-decoration-style: dashed;
+  text-decoration-color: color-mix(in srgb, var(--ink-muted) 55%, transparent);
+}
+
+.markdown-body .wiki-link-unresolved:hover,
+.markdown-body .wiki-link-unresolved:focus-visible {
+  color: var(--accent);
+  text-decoration-color: var(--accent);
+}
+
+@media print {
+  .markdown-body .wiki-link {
+    color: var(--print-reference);
+  }
+
+  .markdown-body .wiki-link-unresolved {
+    color: var(--print-muted);
+    text-decoration-style: dashed;
+  }
+}
+
 /*
  * 引用。法律筆記裡這通常是判決或條文的原文，所以給它一點份量：
  * 淡底色加上襯線的斜體感，讓它跟自己寫的分析一眼分得開。
@@ -655,6 +687,34 @@ body::after {
 .markdown-body input[type="checkbox"] {
   margin-right: 0.4em;
   accent-color: var(--accent);
+}
+
+/*
+ * 內建使用說明比一般筆記長很多。保留共用 Markdown 語言，但把它整理成較像手冊的紙張：
+ * 標題更容易掃視、章節跳轉不貼齊視窗頂端，表格也有安靜的底色可快速比對。
+ */
+.help-document .markdown-body {
+  max-width: none;
+  font-size: 15.5px;
+}
+
+.help-document .markdown-body h1 {
+  margin-bottom: 0.75em;
+  padding-bottom: 0.45em;
+  font-size: 1.85em;
+}
+
+.help-document .markdown-body h2 {
+  scroll-margin-top: 1.75rem;
+}
+
+.help-document .markdown-body table {
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--surface) 68%, transparent);
+}
+
+.help-document .markdown-body th {
+  color: var(--accent);
 }
 
 /*

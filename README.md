@@ -62,7 +62,7 @@ NEXUM 取自 nexus（連結、樞紐）：這個工具要做的不是收集片�
    可摺疊         可摺疊        兩欄都摺起來 = 專注模式
 ```
 
-搜尋有兩個入口：筆記列表上方的常駐搜尋框，以及命令面板（搜尋、跳轉、新增筆記、切換主題都從這裡走）。
+搜尋有兩個入口：筆記列表上方的常駐搜尋框，以及 `⌘P` Quick Open（最近開啟、搜尋與跳轉）。
 
 ### 分頁
 
@@ -375,6 +375,34 @@ migration。放在 repo 裡則是改完 deploy 就更新，也不佔資料庫額
 意思，不會出現「有些地方用 token、有些地方用預設」的兩套系統。內文（預覽區）不走這套，
 它由 `.markdown-body` 用 em 自己管，因為那裡要的是文章的相對層級而不是介面的固定級距。
 
+## Knowledge Links
+
+v1 的知識連結只支援 `[[筆記標題]]`。Markdown 原文永遠保留 title syntax，不寫 UUID，
+所以單篇 Markdown、整包 ZIP 與 PDF 都不依賴 NEXUM NOTE 才讀得懂。`note_links` 只是由正文
+重建的 relational index，用來查 Backlinks；正文與索引不一致時一律以正文為準。
+
+- Editor 輸入 `[[` 會沿用 CodeMirror 的 completion menu，中文 prefix 優先、contains 次之；
+  inline code、fenced code 與四格縮排 code 不解析。
+- Preview 中可解析的連結沿用 `/n/[id]` 與既有 tabs；找不到的連結會先顯示確認介面，才用
+  精確 title Quick Create。頁尾的 Linked References 合併相同來源並顯示中文 context。
+- `⌘P` 是 Quick Open：初始顯示最近開啟，搜尋後仍走既有 tabs store，不建立第二份 workspace state。
+- title 採外圍 trim 與 Unicode NFC；英文大小寫與內部空白保留。scope 內只有一篇同名筆記
+  才算 resolved。同名時不任選第一篇，維持 ambiguous，因為 v1 的可攜語法沒有 id／alias。
+- 已解析目標保存 immutable `target_note_id`，但每次重建仍重新依正文 title 解析；舊 id 不會
+  掩蓋 rename、delete 或 stale index。
+
+標題由正文第一行生成。若改名會影響可確定的來源，autosave 先停在確認狀態；確認後 DB
+transaction 會先鎖定並驗證所有 optimistic-lock token、留下到期的版本快照，再精確替換
+非 code 區域的 `[[舊標題]]`。任一來源已改動就全部回滾，不留下半完成 rename。舊標題本來
+就重複時，來源語意不確定，因此不自動改寫。刪除只讓 link unresolved、正文不動；同 title
+還原後會自然 resolve。
+
+Schema 在 `supabase/migrations/0003_knowledge_links.sql`。既有資料不在 migration 裡用 regex
+硬猜 Markdown context；登入後 `KnowledgeIndexRepair` 以正式 parser 每批 30 篇重建，cursor
+存在 `localStorage` 的 `nexum.knowledge-index.v1`，失敗可重試且不阻塞正文保存。要強制全量
+重跑可清除此 key 後重新載入。單篇 index 失敗不回滾已成功保存的 Markdown，下一次保存或
+background batch 會修復。
+
 **視覺風格**
 
 - 溫暖紙感：偏米黃的底色、襯線字體、較寬的行高，適合長時間閱讀與寫作。
@@ -391,7 +419,7 @@ migration。放在 repo 裡則是改完 deploy 就更新，也不佔資料庫額
 
 | 按鍵 | 動作 |
 |---|---|
-| `Cmd+P` | 命令面板：搜尋、跳轉筆記、新增筆記、切換主題（**尚未實作**，目前搜尋只有列表上方的常駐輸入框） |
+| `Cmd+P` | Quick Open：最近開啟、搜尋並切換筆記 |
 | `Cmd+F` | 在目前這篇筆記內搜尋（CodeMirror 內建） |
 | `Cmd+S` | 立即存檔（平常已自動存，這個是求心安用的） |
 | `Cmd+B` / `Cmd+I` | 粗體／斜體 |
@@ -510,7 +538,7 @@ Markdown 可攜性不受影響。
 實作上這個 keymap 是 `Prec.highest`，才排得到官方 `markdownKeymap`（`Prec.high`）前面；
 不是中文條列時回傳 `false` 交還給它，Markdown 清單的行為完全不變。
 
-注意瀏覽器保留了 `Cmd+N`、`Cmd+T`、`Cmd+W`，網頁攔不到，所以「新增筆記」只能走命令面板或畫面上的按鈕，不要指望快捷鍵。
+注意瀏覽器保留了 `Cmd+N`、`Cmd+T`、`Cmd+W`，網頁攔不到，所以「新增筆記」只能走畫面上的按鈕，不要指望快捷鍵。
 
 ## 垃圾桶的定期清理
 
@@ -620,7 +648,7 @@ attachments id, note_id, storage_path, filename, size, mime_type, created_at
 
 **M3 — 打磨**
 PWA 離線唯讀、~~匯出~~、~~深淺色主題~~、~~兩欄捲動同步~~、~~圖片壓縮~~。
-剩下：PWA 離線唯讀、命令面板（⌘P）。
+剩下：PWA 離線唯讀。
 
 ## 待決定
 
@@ -634,7 +662,8 @@ cp .env.example .env.local   # 填入 Supabase 專案的 URL 與 publishable key
 npm run dev
 ```
 
-資料表要在 Supabase 的 SQL Editor 依序執行 `supabase/migrations/0001_init.sql`、`0002_storage.sql`。
+資料表要在 Supabase 的 SQL Editor 依序執行 `supabase/migrations/0001_init.sql`、
+`0002_storage.sql`、`0003_knowledge_links.sql`。
 環境變數還沒設定時首頁會顯示設定說明，dev server 照樣跑得起來。
 
 部署到 Vercel 之後還要設兩個環境變數，垃圾桶的定期清理才會運作（見上面那一節）：
@@ -678,8 +707,8 @@ Magic Link 登入、筆記 CRUD、CodeMirror 左右分割編輯、自動存檔�
 上傳失敗訊息寫成 HTML 註解導致完全看不見、預覽區空 `src` 觸發整頁重載。
 
 M3 已做：匯出、深淺色主題與切換器、圖片壓縮、內建使用說明頁、
-支援中英文篩選的斜線命令。
-未做：PWA 離線唯讀、命令面板（⌘P）。
+支援中英文篩選的斜線命令與 `⌘P` Quick Open。
+未做：PWA 離線唯讀。
 
 **NEXUM NOTE 的產品化（品牌、版面比例、側邊欄、工具列、tooltip、閱讀模式、空狀態）已完成**，
 在瀏覽器裡深淺色都看過：品牌標與文字標、額度卡的金色進度、側邊欄 active 的左側 accent、
@@ -732,7 +761,11 @@ npm test          # 只跑測試
 [`tests/ordered-list.test.mjs`](tests/ordered-list.test.mjs) 共 12 項，涵蓋中文輸入常見的半／全形
 數字、句點與空格容錯；[`tests/slash-commands.test.mjs`](tests/slash-commands.test.mjs) 共 8 項，
 涵蓋 Slash Command 的中英文搜尋與安全觸發範圍；
-[`tests/print-export.test.mjs`](tests/print-export.test.mjs) 共 7 項，涵蓋 Study/Clean、台北匯出日、
-安全 metadata、route path 與文件標題去重規則。總計 133 項。
+[`tests/print-export.test.mjs`](tests/print-export.test.mjs) 共 8 項，涵蓋 Study/Clean、台北匯出日、
+安全 metadata、route path、文件標題去重與 Wiki Link 可讀性；
+[`tests/wiki-links.test.mjs`](tests/wiki-links.test.mjs) 共 23 項，涵蓋 parser、code exclusion、
+resolution、rename、context、autocomplete 與 Preview/PDF；
+[`tests/knowledge-schema.test.mjs`](tests/knowledge-schema.test.mjs) 共 8 項，靜態驗證 migration、
+indexes、RLS、title race lock 與 transaction guard。總計 165 項。
 
 測試直接 import `.ts` 原始碼（Node 的型別剝離），不需要先編譯。

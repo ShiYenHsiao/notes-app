@@ -1,6 +1,6 @@
 # NEXUM NOTE — 專案現況
 
-最後更新：2026-08-09（PDF Export v1）。這份文件描述**目前真的跑得起來的東西**，
+最後更新：2026-08-09（Knowledge Layer v1）。這份文件描述**目前真的跑得起來的東西**，
 以及目前真的壞著的東西。設計理由在 [`README.md`](../README.md)，UI 規格在 [`UI.md`](UI.md)。
 
 ---
@@ -22,16 +22,16 @@ Mac 是唯一的編輯環境，手機與 iPad 只用來閱讀。
 | 框架 | Next.js 16.3（App Router，Turbopack）、React 19.2 |
 | 樣式 | Tailwind v4（`@theme inline` 的 token 在 `globals.css`） |
 | 編輯器 | CodeMirror 6 + `@codemirror/lang-markdown` |
-| 預覽 | react-markdown + remark-gfm + 三支自訂 rehype 外掛 |
+| 預覽 | react-markdown + remark-gfm + Wiki Link／callout／highlight／heading rehype 外掛 |
 | 後端 | Supabase：Postgres、Storage、Auth，全部免費方案 |
 | 部署 | Vercel（`main` 分支 = production），含一個每日 Cron |
-| 測試 | `node --test`，133 項，沒有額外的測試框架 |
+| 測試 | `node --test`，165 項，沒有額外的測試框架 |
 
 ---
 
 ## 資料模型
 
-`supabase/migrations/` 兩個檔案，**本輪與前幾輪都沒有動過 schema**。
+`supabase/migrations/` 三個檔案；Knowledge Layer 新增的是可重建索引，不改 notes 的正文模型。
 
 ```
 notes       id, user_id, content, title(generated), pinned,
@@ -40,6 +40,8 @@ tags        id, user_id, name                        unique(user_id, name)
 note_tags   note_id, tag_id                          兩邊 on delete cascade
 versions    id, note_id, content, created_at
 attachments id, note_id, storage_path, filename, size, mime_type, created_at
+note_links  user_id, source_note_id, target_note_id(nullable), target_title,
+            occurrence_index, source range, source_updated_at, content_hash
 ```
 
 - `notes.title` 是 generated column，資料庫從內文第一行推導。前端的
@@ -48,6 +50,8 @@ attachments id, note_id, storage_path, filename, size, mime_type, created_at
   改任何一欄都會前進，包含只改 `pinned`
 - RLS 一律以 `user_id` 為界；`versions`／`attachments`／`note_tags` 沒有自己的
   `user_id`，權限推導自所屬筆記
+- `note_links` 同時驗證 source 與 resolved target 的 owner；Markdown 是 source of truth，
+  index 以成功保存的 `updated_at` token 原子替換，能分批重建
 
 ---
 
@@ -76,6 +80,13 @@ Markdown 全套語法、四色螢光筆 `==字=={g}`、四種備註框、圖片�
 多筆記分頁（localStorage）、大綱面板（含當前章節追蹤）、兩欄捲動同步（用標題當錨點
 內插）、三種檢視 `⌘1`/`⌘2`/`⌘3`、專注模式 `⌘⇧F`、自動存檔與衝突處理。
 
+### Knowledge Layer v1
+`[[Title]]`、CodeMirror Wiki autocomplete、Editor／Preview resolved 與 unresolved 樣式、
+確認後 Quick Create、含中文 context 的 Linked References，以及整合既有 tabs 的 `⌘P`
+Quick Open。code context 不解析；同名標題保持 ambiguous，不任選第一篇。改名若有唯一可判定
+來源，確認後以單一 transaction 驗證 optimistic locks、留下 snapshots、改寫精確 links。
+soft delete 不動來源 Markdown，restore 後依同 title 規則重新解析。
+
 ### 維運
 每日 04:00 由 Vercel Cron 清掉超過 30 天的垃圾桶內容，**連同 Storage 上的圖片**。
 
@@ -93,6 +104,7 @@ Markdown 全套語法、四色螢光筆 `==字=={g}`、四種備註框、圖片�
 | `⌘⇧C` `⌘⇧M` `⌘⇧H` | 程式碼區塊／備註框／螢光筆 | `markdown-editor.tsx` |
 | `⌘⇧I` | 插入圖片 | `note-view.tsx` |
 | `⌘F` `⌘Z` `⌘⇧Z` | 搜尋／復原／重做 | CodeMirror 內建 |
+| `⌘P` | Quick Open：最近開啟／搜尋／切換筆記 | `quick-open.tsx` |
 | `Tab` `⇧Tab` | 縮排／反縮排 | `markdown-editor.tsx` |
 | `Esc` | 關最上層浮層；沒有浮層時退出專注模式 | `workspace-focus.tsx`（冒泡階段） |
 
@@ -103,7 +115,7 @@ Markdown 全套語法、四色螢光筆 `==字=={g}`、四種備註框、圖片�
 
 ## 測試
 
-133 項，`npm test`。
+165 項，`npm test`。
 
 | 檔案 | 項數 | 涵蓋 |
 |---|---|---|
@@ -112,7 +124,9 @@ Markdown 全套語法、四色螢光筆 `==字=={g}`、四種備註框、圖片�
 | `tests/workspace.test.mjs` | 29 | 分頁規則、標題推導、垃圾桶保留期、存檔衝突分類、搜尋合併排序、專注模式的快捷鍵與 ESC 判斷 |
 | `tests/ordered-list.test.mjs` | 12 | 中文常見的有序清單半／全形輸入、nested list、退出與 undo |
 | `tests/slash-commands.test.mjs` | 8 | Slash Command 中英文搜尋、trigger 範圍與 snippet |
-| `tests/print-export.test.mjs` | 7 | Study / Clean、匯出日期、metadata、route path 與文件標題去重 |
+| `tests/print-export.test.mjs` | 8 | Study / Clean、匯出日期、metadata、route path、標題去重與 Wiki Link 可讀性 |
+| `tests/wiki-links.test.mjs` | 23 | parse/code exclusion、normalization、index、rename、duplicate／delete／restore、context、CodeMirror code exclusion、autocomplete ranking 與 Preview/PDF pipeline |
+| `tests/knowledge-schema.test.mjs` | 8 | migration 欄位／索引、RLS、版本 token、title race、transaction、search_path 與 grants |
 
 測的都是純函式。**DOM 層級的行為沒有自動化測試** —— 分頁點擊、右鍵選單的焦點、
 專注模式的動畫都是在瀏覽器裡實際操作驗證的。這是刻意的取捨，不是遺漏。
@@ -139,7 +153,6 @@ Markdown 全套語法、四色螢光筆 `==字=={g}`、四種備註框、圖片�
 
 UI 上不會出現這些的入口，使用說明頁也寫明了：
 
-- 命令面板 `⌘P`
 - PWA 離線唯讀
 - 欄寬拖曳（所以也沒有要保留的使用者欄寬設定）
 - 離線編輯

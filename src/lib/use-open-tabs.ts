@@ -122,7 +122,10 @@ export function useOpenTabs(knownIds: ReadonlySet<string>): OpenTabs {
     [router],
   );
 
-  const ids = stored.filter((id) => id === HELP_TAB_ID || knownIds.has(id));
+  // Quick Open 能找到列表 300 篇上限以外的筆記；目前網址上的筆記一定要留在分頁列。
+  const ids = stored.filter(
+    (id) => id === HELP_TAB_ID || id === activeId || knownIds.has(id),
+  );
 
   return { ids, activeId, open, close, closeOthers };
 }

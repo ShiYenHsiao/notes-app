@@ -108,12 +108,78 @@ export type Database = {
         };
         Relationships: [];
       };
+      note_links: {
+        Row: {
+          id: string;
+          user_id: string;
+          source_note_id: string;
+          target_note_id: string | null;
+          target_title: string;
+          occurrence_index: number;
+          source_from: number;
+          source_to: number;
+          source_updated_at: Timestamp;
+          content_hash: string;
+          created_at: Timestamp;
+          updated_at: Timestamp;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          source_note_id: string;
+          target_note_id?: string | null;
+          target_title: string;
+          occurrence_index: number;
+          source_from: number;
+          source_to: number;
+          source_updated_at: Timestamp;
+          content_hash: string;
+          created_at?: Timestamp;
+          updated_at?: Timestamp;
+        };
+        Update: {
+          target_note_id?: string | null;
+          target_title?: string;
+          source_from?: number;
+          source_to?: number;
+          source_updated_at?: Timestamp;
+          content_hash?: string;
+          updated_at?: Timestamp;
+        };
+        Relationships: [];
+      };
     };
     Views: Record<never, never>;
     Functions: {
+      create_linked_note: {
+        Args: { p_title: string };
+        Returns: { status: string; note_id: string | null }[];
+      };
       purge_deleted_notes: {
         Args: Record<never, never>;
         Returns: number;
+      };
+      rename_note_with_links: {
+        Args: {
+          p_note_id: string;
+          p_expected_updated_at: Timestamp;
+          p_content: string;
+          p_source_updates: unknown;
+        };
+        Returns: Timestamp;
+      };
+      replace_note_links: {
+        Args: {
+          p_source_note_id: string;
+          p_expected_updated_at: Timestamp;
+          p_content_hash: string;
+          p_links: unknown;
+        };
+        Returns: boolean;
+      };
+      resolve_note_titles: {
+        Args: { p_titles: unknown };
+        Returns: { id: string; title: string; updated_at: Timestamp }[];
       };
     };
     Enums: Record<never, never>;

@@ -5,6 +5,14 @@ import { redirect } from "next/navigation";
 
 import { requireUser } from "@/lib/auth";
 import { markdownFilename } from "@/lib/export";
+import {
+  applyWikiLinkRename,
+  planWikiLinkRename,
+  rebuildNoteLinksSafely,
+  rebuildSourcesForTitle,
+  RenameConflictError,
+} from "@/lib/knowledge";
+import { titleFromContent } from "@/lib/note-display";
 import { getNote, listNotes, type NoteSummary } from "@/lib/notes";
 import { createClient } from "@/lib/supabase/server";
 import { isSnapshotDue, writeSnapshot } from "@/lib/versions";
@@ -12,6 +20,12 @@ import { isSnapshotDue, writeSnapshot } from "@/lib/versions";
 export type SaveResult =
   | { status: "saved"; updatedAt: string }
   | { status: "conflict" }
+  | {
+      status: "rename-required";
+      oldTitle: string;
+      newTitle: string;
+      sourceCount: number;
+    }
   | { status: "error"; message: string };
 
 /** 新增一篇空筆記並跳過去。 */
@@ -43,23 +57,97 @@ export async function saveNote(
   id: string,
   content: string,
   expectedUpdatedAt: string,
+  confirmRename = false,
 ): Promise<SaveResult> {
   await requireUser();
   const supabase = await createClient();
 
+  /*
+   * 標題就是正文第一行，改名跟普通存檔走同一個入口。先讀目前版本有兩個理由：
+   * 確認 optimistic-lock token、以及在真的寫入前判斷是否需要原子更新來源 Wiki Link。
+   */
+  const { data: current, error: currentError } = await supabase
+    .from("notes")
+    .select("content, title, updated_at")
+    .eq("id", id)
+    .is("deleted_at", null)
+    .maybeSingle();
+  if (currentError) {
+    return { status: "error", message: currentError.message };
+  }
+  if (!current || current.updated_at !== expectedUpdatedAt) {
+    return { status: "conflict" };
+  }
+
+  const oldTitle = current.title;
+  const newTitle = titleFromContent(content);
+  if (oldTitle && oldTitle !== newTitle) {
+    const renamePlan = await planWikiLinkRename({
+      noteId: id,
+      oldTitle,
+      newTitle: newTitle ?? "",
+      targetContent: content,
+    });
+
+    if (renamePlan.sources.length > 0 && !newTitle) {
+      return {
+        status: "error",
+        message: `「${oldTitle}」仍被 ${renamePlan.sources.length} 篇筆記引用，請先給這篇筆記一個新標題。`,
+      };
+    }
+
+    if (renamePlan.sources.length > 0 && renamePlan.ambiguousNewTitle) {
+      return {
+        status: "error",
+        message: `已經有一篇「${newTitle}」。有來源連結的筆記不能改成重複標題，否則 [[Title]] 無法確定目標。`,
+      };
+    }
+
+    if (renamePlan.sources.length > 0 && !confirmRename) {
+      return {
+        status: "rename-required",
+        oldTitle,
+        newTitle: newTitle ?? "無標題",
+        sourceCount: renamePlan.sources.length,
+      };
+    }
+
+    if (renamePlan.sources.length > 0 && confirmRename) {
+      try {
+        const renamed = await applyWikiLinkRename({
+          noteId: id,
+          expectedUpdatedAt,
+          plan: renamePlan,
+        });
+
+        const affectedIds = [id, ...renamePlan.sources.map((source) => source.noteId)];
+        const { data: affected } = await supabase
+          .from("notes")
+          .select("id, title, content, updated_at")
+          .in("id", affectedIds)
+          .is("deleted_at", null);
+        for (const note of affected ?? []) {
+          await rebuildNoteLinksSafely(note);
+        }
+
+        revalidatePath("/", "layout");
+        return { status: "saved", updatedAt: renamed.updatedAt };
+      } catch (error) {
+        if (error instanceof RenameConflictError) {
+          return { status: "conflict" };
+        }
+        return {
+          status: "error",
+          message: error instanceof Error ? error.message : "更新 Wiki Link 失敗。",
+        };
+      }
+    }
+  }
+
   // 快照要記錄「存檔前」的狀態，所以得在 update 之前把舊內容讀出來。
   // 只有真的到了留快照的時間才多這一次查詢。
   const snapshotDue = await isSnapshotDue(id);
-  let previousContent: string | null = null;
-
-  if (snapshotDue) {
-    const { data: before } = await supabase
-      .from("notes")
-      .select("content")
-      .eq("id", id)
-      .maybeSingle();
-    previousContent = before?.content ?? null;
-  }
+  const previousContent = snapshotDue ? current.content : null;
 
   const { data, error } = await supabase
     .from("notes")
@@ -83,6 +171,17 @@ export async function saveNote(
     await writeSnapshot(id, previousContent);
   }
 
+  await rebuildNoteLinksSafely({
+    id,
+    title: newTitle,
+    content,
+    updated_at: data.updated_at,
+  });
+  if (oldTitle !== newTitle) {
+    await rebuildSourcesForTitle(oldTitle);
+    await rebuildSourcesForTitle(newTitle);
+  }
+
   revalidatePath("/", "layout");
   return { status: "saved", updatedAt: data.updated_at };
 }
@@ -97,6 +196,13 @@ export async function trashNote(id: string, goHome = true) {
   await requireUser();
   const supabase = await createClient();
 
+  const { data: before } = await supabase
+    .from("notes")
+    .select("title")
+    .eq("id", id)
+    .is("deleted_at", null)
+    .maybeSingle();
+
   const { error } = await supabase
     .from("notes")
     .update({ deleted_at: new Date().toISOString() })
@@ -105,6 +211,8 @@ export async function trashNote(id: string, goHome = true) {
   if (error) {
     throw new Error(`刪除失敗：${error.message}`);
   }
+
+  await rebuildSourcesForTitle(before?.title ?? null);
 
   revalidatePath("/", "layout");
 
@@ -164,6 +272,16 @@ export async function restoreNote(id: string) {
   if (error) {
     throw new Error(`還原失敗：${error.message}`);
   }
+
+  const { data: restored } = await supabase
+    .from("notes")
+    .select("id, title, content, updated_at")
+    .eq("id", id)
+    .maybeSingle();
+  if (restored) {
+    await rebuildNoteLinksSafely(restored);
+  }
+  await rebuildSourcesForTitle(restored?.title ?? null);
 
   revalidatePath("/", "layout");
 }
