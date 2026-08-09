@@ -34,6 +34,7 @@ import {
   outdentLength,
 } from "@/lib/indent-rules";
 import { calloutBlock, DEFAULT_CALLOUT } from "@/lib/callouts";
+import { continueLooseOrderedList } from "@/lib/ordered-list";
 import { slashCommands } from "@/lib/slash-commands";
 
 /** 螢光筆的顏色代號。省略代表黃色，寫進 Markdown 時不加後綴。 */
@@ -146,7 +147,17 @@ export function MarkdownEditor({
            * 這個 keymap 排在 autocompletion() 後面，選單開著時 acceptCompletion
            * 仍然先接到 Enter。
            */
-          Prec.highest(keymap.of([{ key: "Enter", run: continueChineseList }])),
+          Prec.highest(
+            keymap.of([
+              { key: "Enter", run: continueChineseList },
+              /*
+               * 官方 keymap 只接 syntax tree 已辨識的 CommonMark list。中文輸入法常留下
+               * 全形數字／句點／空格，或省略句點後空白；這支只補那些變體，標準語法
+               * 回傳 false，仍由官方處理完整的 list renumbering。
+               */
+              { key: "Enter", run: continueLooseOrderedList },
+            ]),
+          ),
 
           // Prec.high 才蓋得過 basicSetup 自己的綁定（例如 Mod-i）。
           Prec.high(
