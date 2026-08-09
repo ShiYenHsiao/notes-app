@@ -4,7 +4,7 @@ import { useEffect, useRef } from "react";
 import { markdown } from "@codemirror/lang-markdown";
 import { redo, undo } from "@codemirror/commands";
 import { languages } from "@codemirror/language-data";
-import { autocompletion } from "@codemirror/autocomplete";
+import { autocompletion, startCompletion } from "@codemirror/autocomplete";
 import { HighlightStyle, indentUnit, syntaxHighlighting } from "@codemirror/language";
 import { tags } from "@lezer/highlight";
 import { EditorState, Prec, RangeSetBuilder, type Text } from "@codemirror/state";
@@ -191,6 +191,26 @@ export function MarkdownEditor({
           EditorView.updateListener.of((update) => {
             if (update.docChanged) {
               onChangeRef.current(update.state.doc.toString());
+
+              /*
+               * activateOnTyping 只認 input.type；貼上、部分瀏覽器與輸入法走的 transaction
+               * 不會自動查 completion source。只要這次真的插入過斜線，就在 transaction
+               * 完成後用官方 command 查一次；位置是否合法仍由 slashCommands 判斷。
+               */
+              let insertedSlash = false;
+              for (const transaction of update.transactions) {
+                if (!transaction.isUserEvent("input")) {
+                  continue;
+                }
+                transaction.changes.iterChanges((_fromA, _toA, _fromB, _toB, inserted) => {
+                  if (inserted.toString().includes("/")) {
+                    insertedSlash = true;
+                  }
+                });
+              }
+              if (insertedSlash) {
+                queueMicrotask(() => startCompletion(update.view));
+              }
             }
           }),
 
