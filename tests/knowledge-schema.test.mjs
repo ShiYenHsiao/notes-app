@@ -6,6 +6,10 @@ const migration = await readFile(
   new URL("../supabase/migrations/0003_knowledge_links.sql", import.meta.url),
   "utf8",
 );
+const rpcGrantsMigration = await readFile(
+  new URL("../supabase/migrations/0004_restrict_knowledge_rpc_grants.sql", import.meta.url),
+  "utf8",
+);
 
 test("note_links 保存可重建 occurrence、title、immutable id 與來源版本", () => {
   for (const column of [
@@ -72,8 +76,46 @@ test("rename 與 Quick Create 共用正規化 title advisory lock，競態不會
   assert.match(migration, /errcode = '23505', message = 'rename title is ambiguous'/);
 });
 
-test("migration function 權限只授予 authenticated", () => {
-  assert.match(migration, /revoke all on function public\.create_linked_note\(text\) from public/);
-  assert.match(migration, /grant execute on function public\.create_linked_note\(text\) to authenticated/);
-  assert.match(migration, /grant execute on function public\.resolve_note_titles\(jsonb\) to authenticated/);
+const knowledgeRpcSignatures = [
+  "replace_note_links(uuid, timestamptz, text, jsonb)",
+  "resolve_note_titles(jsonb)",
+  "create_linked_note(text)",
+  "rename_note_with_links(uuid, timestamptz, text, jsonb)",
+];
+
+test("Knowledge RPC 最終撤銷 anon 與 PUBLIC，只明確授予 authenticated", () => {
+  for (const signature of knowledgeRpcSignatures) {
+    const revokeAnon = `revoke execute on function public.${signature} from anon;`;
+    const revokePublic = `revoke execute on function public.${signature} from public;`;
+    const grantAuthenticated = `grant execute on function public.${signature} to authenticated;`;
+
+    assert.ok(rpcGrantsMigration.includes(revokeAnon), `${signature} 必須撤銷 anon EXECUTE`);
+    assert.ok(rpcGrantsMigration.includes(revokePublic), `${signature} 必須撤銷 PUBLIC EXECUTE`);
+    assert.ok(
+      rpcGrantsMigration.includes(grantAuthenticated),
+      `${signature} 必須授予 authenticated EXECUTE`,
+    );
+  }
+});
+
+test("Knowledge RPC 權限 migration 不會在 revoke 後重新開放 anon 或 PUBLIC", () => {
+  for (const signature of knowledgeRpcSignatures) {
+    const revokeAnon = `revoke execute on function public.${signature} from anon;`;
+    const revokePublic = `revoke execute on function public.${signature} from public;`;
+    const grantAuthenticated = `grant execute on function public.${signature} to authenticated;`;
+
+    assert.ok(
+      rpcGrantsMigration.indexOf(revokeAnon) < rpcGrantsMigration.indexOf(grantAuthenticated),
+      `${signature} 的 authenticated grant 必須在 anon revoke 之後`,
+    );
+    assert.ok(
+      rpcGrantsMigration.indexOf(revokePublic) < rpcGrantsMigration.indexOf(grantAuthenticated),
+      `${signature} 的 authenticated grant 必須在 PUBLIC revoke 之後`,
+    );
+  }
+
+  assert.doesNotMatch(
+    rpcGrantsMigration,
+    /grant execute on function public\.[^(]+\([^;]+\) to (?:anon|public);/i,
+  );
 });
