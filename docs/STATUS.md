@@ -1,6 +1,6 @@
 # NEXUM NOTE — 專案現況
 
-最後更新：2026-08-09（commit `d858c56`）。這份文件描述**目前真的跑得起來的東西**，
+最後更新：2026-08-09（PDF Export v1）。這份文件描述**目前真的跑得起來的東西**，
 以及目前真的壞著的東西。設計理由在 [`README.md`](../README.md)，UI 規格在 [`UI.md`](UI.md)。
 
 ---
@@ -22,10 +22,10 @@ Mac 是唯一的編輯環境，手機與 iPad 只用來閱讀。
 | 框架 | Next.js 16.3（App Router，Turbopack）、React 19.2 |
 | 樣式 | Tailwind v4（`@theme inline` 的 token 在 `globals.css`） |
 | 編輯器 | CodeMirror 6 + `@codemirror/lang-markdown` |
-| 預覽 | react-markdown + remark-gfm + 兩支自訂 rehype 外掛 |
+| 預覽 | react-markdown + remark-gfm + 三支自訂 rehype 外掛 |
 | 後端 | Supabase：Postgres、Storage、Auth，全部免費方案 |
 | 部署 | Vercel（`main` 分支 = production），含一個每日 Cron |
-| 測試 | `node --test`，106 項，沒有額外的測試框架 |
+| 測試 | `node --test`，133 項，沒有額外的測試框架 |
 
 ---
 
@@ -56,7 +56,9 @@ attachments id, note_id, storage_path, filename, size, mime_type, created_at
 ### 筆記管理
 新增、編輯、軟刪除、還原、釘選。搜尋涵蓋**內文與標籤名稱**（`pg_trgm` + ILIKE，
 兩個查詢在 JS 合併）。篩選：標籤 `?tag=`、只看釘選 `?pinned=1`，都可加書籤。
-單篇「複製 Markdown」「匯出 Markdown」，以及全部打包成 zip（含附件與 frontmatter）。
+單篇「複製 Markdown」「匯出 Markdown」「匯出 PDF」，以及全部打包成 zip（含附件與
+frontmatter）。PDF 是受登入與 RLS 保護的獨立 A4 Print View，提供 Study / Clean 兩種樣式，
+再由 browser-native Print 儲存；不產生或保存 server-side PDF。
 
 ### 編輯器
 Markdown 全套語法、四色螢光筆 `==字=={g}`、四種備註框、圖片貼上／拖曳自動上傳
@@ -101,13 +103,16 @@ Markdown 全套語法、四色螢光筆 `==字=={g}`、四種備註框、圖片�
 
 ## 測試
 
-106 項，`npm test`。
+133 項，`npm test`。
 
 | 檔案 | 項數 | 涵蓋 |
 |---|---|---|
 | `tests/markdown.test.mjs` | 53 | 螢光標記、程式碼區塊、callout（含四種法律類型）、清單與段落銜接、縮排規則、縮排參考線、捲動同步的對應、大綱解析 |
 | `tests/chinese-list.test.mjs` | 24 | 四套序列的辨識與遞增、上限、全形半形與大小寫沿用、不該接手的寫法 |
 | `tests/workspace.test.mjs` | 29 | 分頁規則、標題推導、垃圾桶保留期、存檔衝突分類、搜尋合併排序、專注模式的快捷鍵與 ESC 判斷 |
+| `tests/ordered-list.test.mjs` | 12 | 中文常見的有序清單半／全形輸入、nested list、退出與 undo |
+| `tests/slash-commands.test.mjs` | 8 | Slash Command 中英文搜尋、trigger 範圍與 snippet |
+| `tests/print-export.test.mjs` | 7 | Study / Clean、匯出日期、metadata、route path 與文件標題去重 |
 
 測的都是純函式。**DOM 層級的行為沒有自動化測試** —— 分頁點擊、右鍵選單的焦點、
 專注模式的動畫都是在瀏覽器裡實際操作驗證的。這是刻意的取捨，不是遺漏。
@@ -118,35 +123,13 @@ Markdown 全套語法、四色螢光筆 `==字=={g}`、四種備註框、圖片�
 
 照「會不會咬到人」排序。**這些都不是本輪造成的，也都還沒修。**
 
-### 1. 有序清單 `1.` 有時候不會延續
-使用者回報過，重現路徑已經用 headless 跑過矩陣確認，但**還沒確定他踩到的是哪一條**，
-所以沒有動手修。會不延續的情況：
-
-- `1.` 後面沒有空白直接接中文（`1.甲`）—— 中文打字習慣，最可能是這條
-- `1.` 後面是全形空格（IME 全形模式）
-- 全形句號或全形數字（`1．甲`、`１. 甲`）
-- 段落後直接接非 1 開頭（`段落` ↵ `2. 甲`）—— 打字時會自動補空行，貼上才會遇到
-- 行首四個空白（indented code block）
-- 懶惰延續行（`1. 甲` 下一行沒縮排的 `乙`）
-
-修法要看是哪一條：前三條是「打了 `1.` 之後容錯」，後三條是既有機制的延伸。
-
-### 2. CodeMirror 的高度表是錯的
-`view.contentHeight` 比真實 `scrollHeight` 少約四分之一，`documentPadding.top`
-停在 0（實際 28）、`defaultLineHeight` 停在 14（實際約 24）。原因是它在主題 CSS
-生效前量過一次就沒再校正。
-
-- 捲動同步**已經繞過**（改用 `coordsAtPos()` 量真實 DOM）
-- 大綱跳轉的 `revealLine()` 還在用它，所以那是「跳到大概的位置」
-- 要修的話是找一個正確的時機呼叫 `view.requestMeasure()`
-
-### 3. 釘選會把筆記推到列表最上面
+### 1. 釘選會把筆記推到列表最上面
 `updated_at` 的 trigger 是 `for each row`，`togglePin` 只改 `pinned` 也會讓時間前進。
 語意上「釘選」不是「修改」。要修得動 trigger，屬於資料模型變更。
 
 （存檔那邊已經處理了：衝突時會分辨是不是自己造成的，不會再卡住編輯。）
 
-### 4. 標題在閱讀模式重複
+### 2. 標題在閱讀模式重複
 標題列顯示一次，預覽區的 `# 標題` 再一次。Markdown-first 工具的必然，但在純閱讀
 模式（專注 + `⌘3`）特別明顯。
 

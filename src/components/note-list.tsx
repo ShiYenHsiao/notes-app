@@ -6,6 +6,7 @@ import { useEffect, useRef, useState, useTransition } from "react";
 
 import { filterNotes, noteMarkdown, togglePin, trashNote } from "@/lib/actions/notes";
 import { displayTitle, type NoteSummary, type TagSummary } from "@/lib/note-display";
+import { printPath } from "@/lib/print-export";
 
 import { ContextMenu, useContextMenu } from "./context-menu";
 import { IconMore, IconPinned, IconSearch } from "./icons";
@@ -210,6 +211,11 @@ function NoteRow({
           downloadText(filename, content);
           onToast(`已下載 ${filename}`);
         }),
+    },
+    {
+      label: "匯出 PDF",
+      hint: "Study / Clean",
+      onSelect: () => window.open(printPath(note.id), "_blank", "noopener,noreferrer"),
     },
     {
       label: "移至垃圾桶",

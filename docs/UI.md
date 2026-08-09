@@ -170,6 +170,20 @@
 - 表格改無襯線縮一階字（那是拿來掃的資料）
 - 備註框底色只有 6%，層級靠左線與標籤，不靠色塊面積
 
+### PDF Print Preview
+
+`/n/[id]/print` 不進 App Shell。畫面是 neutral workspace background、中間一張 A4 paper，
+上方只有 screen-only control bar：返回筆記、PDF 預覽、Study / Clean、列印／儲存 PDF。
+列印時控制列、workspace background、paper shadow 與 grain 全部消失。
+
+- Document Header：低調 NEXUM NOTE、筆記標題、文字型 metadata tags、台北匯出日；不要 chip、封面或巨大 logo
+- Study：Structure Navy、低飽和四色 highlight、法律 callout 語義色、淡 technical surface
+- Clean：白紙、灰階 hierarchy、highlight underline、callout border；背景圖形關閉時仍可辨識
+- A4 portrait，正文 11pt／1.72；不機械沿用螢幕的 68ch
+- print CSS 全部集中在 `globals.css`，元件內不散落 `@media print`
+- renderer 必須沿用 `MarkdownPreview`；PDF 不得另建 parser 或第三套 Markdown pipeline
+- 不用 JS 手算分頁，不承諾 browser-native print 無法穩定提供的自訂頁碼與逐頁 header/footer
+
 ### Outline
 永遠掛著、用寬度收合（200ms）。長大綱自己捲。當前章節有底色 + 左側短標記，
 捲動時跟著換（`use-active-heading.ts`，rAF throttle）。

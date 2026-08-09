@@ -7,6 +7,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { togglePin, trashNote } from "@/lib/actions/notes";
 import { titleFromContent, type NoteDetail, type TagSummary } from "@/lib/note-display";
 import { headingAnchorId, parseOutline, type OutlineItem } from "@/lib/outline";
+import { printPath } from "@/lib/print-export";
 import { useActiveHeading } from "@/lib/use-active-heading";
 import { useAutosave } from "@/lib/use-autosave";
 import { useImageUpload } from "@/lib/use-image-upload";
@@ -216,7 +217,9 @@ export function NoteView({
             <VersionHistory noteId={note.id} />
 
             <NoteActionsMenu
+              noteId={note.id}
               pinned={note.pinned}
+              canPrint={!save.hasUnsavedChanges}
               onPin={() => void togglePin(note.id, !note.pinned)}
               onTrash={() => void trashNote(note.id, true)}
             />
@@ -440,11 +443,15 @@ function HeaderButton({
 
 /** 低頻操作。放在檯面上只會讓標題列變成一排看不懂的圖示。 */
 function NoteActionsMenu({
+  noteId,
   pinned,
+  canPrint,
   onPin,
   onTrash,
 }: {
+  noteId: string;
   pinned: boolean;
+  canPrint: boolean;
   onPin: () => void;
   onTrash: () => void;
 }) {
@@ -463,6 +470,14 @@ function NoteActionsMenu({
           label="筆記操作"
           items={[
             { label: pinned ? "取消釘選" : "釘選到列表最上面", onSelect: onPin },
+            {
+              label: "匯出 PDF",
+              hint: canPrint ? "Study / Clean" : "等待儲存",
+              disabled: !canPrint,
+              separated: true,
+              onSelect: () =>
+                window.open(printPath(noteId), "_blank", "noopener,noreferrer"),
+            },
             {
               label: "移至垃圾桶",
               hint: "可還原",

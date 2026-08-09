@@ -656,3 +656,460 @@ body::after {
   margin-right: 0.4em;
   accent-color: var(--accent);
 }
+
+/*
+ * PDF / Print presentation。
+ *
+ * renderer 仍是上面的 .markdown-body；這一區只負責紙張、列印語義色與分頁。集中在這裡，
+ * 才不會讓 screen component 各自長出一套 @media print。
+ */
+.print-preview {
+  min-height: 100dvh;
+  color-scheme: light;
+  --print-paper: #fffefa;
+  --print-ink: #292b2c;
+  --print-muted: #686b6d;
+  --print-structure: #294f73;
+  --print-reference: #2f648d;
+  --print-technical: #655d70;
+  --print-technical-soft: #f2f0f2;
+  --print-rule: #d8d7d2;
+  --print-highlight-yellow: #f4e8b8;
+  --print-highlight-green: #dce9d5;
+  --print-highlight-pink: #f0dce1;
+  --print-highlight-blue: #dbe6ef;
+  --print-callout-key: #9a7834;
+  --print-callout-practice: #315d83;
+  --print-callout-pitfall: #9c4c43;
+  --print-callout-insight: #49755d;
+  background: #e8e8e5;
+  color: var(--print-ink);
+}
+
+.print-preview[data-print-style="clean"] {
+  --print-paper: #ffffff;
+  --print-ink: #222222;
+  --print-muted: #626262;
+  --print-structure: #303030;
+  --print-reference: #303030;
+  --print-technical: #4a4a4a;
+  --print-technical-soft: #f5f5f5;
+  --print-rule: #cfcfcf;
+}
+
+.print-preview-controls {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: grid;
+  grid-template-columns: minmax(120px, 1fr) auto minmax(220px, 1fr) auto;
+  align-items: center;
+  gap: 18px;
+  min-height: 54px;
+  padding: 8px 22px;
+  border-bottom: 1px solid #dad9d5;
+  background: rgba(255, 254, 250, 0.96);
+  box-shadow: 0 5px 18px rgba(42, 43, 43, 0.07);
+  color: #414344;
+  font-family: var(--font-sans);
+  backdrop-filter: blur(10px);
+}
+
+.print-preview-back {
+  width: fit-content;
+  color: #5e6264;
+  font-size: 12px;
+  text-decoration: none;
+}
+
+.print-preview-back:hover {
+  color: var(--print-structure);
+}
+
+.print-preview-label {
+  font-family: var(--font-serif);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.print-style-picker {
+  display: flex;
+  justify-self: end;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: #747678;
+}
+
+.print-style-picker > span {
+  margin-right: 3px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+.print-style-picker button {
+  min-width: 56px;
+  padding: 4px 9px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  color: #5d6062;
+  font-size: 11px;
+  transition: 150ms ease-out;
+  transition-property: color, border-color, background-color;
+}
+
+.print-style-picker button:hover {
+  background: #eef2f5;
+  color: var(--print-structure);
+}
+
+.print-style-picker button[aria-pressed="true"] {
+  border-color: #c9d4dd;
+  background: #e8eef3;
+  color: var(--print-structure);
+  font-weight: 700;
+}
+
+.print-preview-action {
+  padding: 7px 13px;
+  border: 1px solid #294f73;
+  border-radius: var(--radius-sm);
+  background: #294f73;
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 600;
+  transition: background-color 150ms ease-out;
+}
+
+.print-preview-action:hover {
+  background: #203f5c;
+}
+
+.print-preview-stage {
+  display: flex;
+  justify-content: center;
+  padding: 36px 24px 64px;
+  overflow-x: auto;
+}
+
+.print-document {
+  box-sizing: border-box;
+  width: min(210mm, 100%);
+  min-height: 297mm;
+  padding: 18mm 17mm 20mm;
+  background: var(--print-paper);
+  box-shadow: 0 18px 48px rgba(38, 39, 39, 0.13);
+  color: var(--print-ink);
+}
+
+.print-document-header {
+  margin-bottom: 2.3em;
+  padding-bottom: 1.2em;
+  border-bottom: 1px solid var(--print-rule);
+}
+
+.print-document-brand {
+  margin: 0 0 0.8em;
+  color: var(--print-structure);
+  font-family: var(--font-sans);
+  font-size: 8.5pt;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+}
+
+.print-document-header h1 {
+  margin: 0;
+  color: var(--print-ink);
+  font-family: var(--font-serif);
+  font-size: 20pt;
+  font-weight: 600;
+  line-height: 1.35;
+  letter-spacing: 0.015em;
+}
+
+.print-document-tags {
+  margin: 0.85em 0 0;
+  color: var(--print-structure);
+  font-family: var(--font-sans);
+  font-size: 8.5pt;
+  letter-spacing: 0.04em;
+}
+
+.print-document-date {
+  margin: 0.65em 0 0;
+  color: var(--print-muted);
+  font-family: var(--font-sans);
+  font-size: 8pt;
+}
+
+.print-document .markdown-body {
+  max-width: none;
+  margin: 0;
+  color: var(--print-ink);
+  font-size: 11pt;
+  line-height: 1.72;
+  letter-spacing: 0.008em;
+}
+
+.print-document .markdown-body p,
+.print-document .markdown-body li {
+  orphans: 3;
+  widows: 3;
+}
+
+.print-document .markdown-body h1,
+.print-document .markdown-body h2,
+.print-document .markdown-body h3,
+.print-document .markdown-body h4,
+.print-document .markdown-body h5,
+.print-document .markdown-body h6 {
+  break-after: avoid-page;
+  break-inside: avoid-page;
+  color: var(--print-ink);
+}
+
+.print-document .markdown-body h1 {
+  border-color: var(--print-rule);
+  font-size: 16.5pt;
+}
+
+.print-document .markdown-body h2 {
+  font-size: 14pt;
+}
+
+.print-document .markdown-body h2::before {
+  background: var(--print-structure);
+}
+
+.print-document .markdown-body h3 {
+  font-size: 11.5pt;
+}
+
+.print-document .markdown-body h4,
+.print-document .markdown-body h5,
+.print-document .markdown-body h6 {
+  color: var(--print-muted);
+  font-family: var(--font-sans);
+  font-size: 10.5pt;
+  font-weight: 700;
+}
+
+.print-document .markdown-body li::marker {
+  color: var(--print-muted);
+}
+
+.print-document .markdown-body a {
+  color: var(--print-reference);
+  text-decoration-color: currentColor;
+}
+
+.print-document .markdown-body mark {
+  border-bottom: 1px solid color-mix(in srgb, var(--print-callout-key) 65%, transparent);
+  border-radius: 1px;
+  background: var(--print-highlight-yellow);
+  box-shadow: 0 0 0 1px var(--print-highlight-yellow);
+  font-weight: 600;
+}
+
+.print-document .markdown-body mark[data-hl="g"] {
+  background: var(--print-highlight-green);
+  box-shadow: 0 0 0 1px var(--print-highlight-green);
+}
+
+.print-document .markdown-body mark[data-hl="p"] {
+  background: var(--print-highlight-pink);
+  box-shadow: 0 0 0 1px var(--print-highlight-pink);
+}
+
+.print-document .markdown-body mark[data-hl="b"] {
+  background: var(--print-highlight-blue);
+  box-shadow: 0 0 0 1px var(--print-highlight-blue);
+}
+
+.print-document .markdown-body blockquote {
+  break-inside: avoid-page;
+  border-color: color-mix(in srgb, var(--print-structure) 45%, transparent);
+  border-radius: 0;
+  background: color-mix(in srgb, var(--print-structure) 4%, var(--print-paper));
+  color: var(--print-muted);
+}
+
+.print-document .markdown-body .callout {
+  break-inside: avoid-page;
+  border-radius: 0;
+  background: color-mix(in srgb, var(--callout-tone) 5%, var(--print-paper));
+}
+
+.print-document .markdown-body .callout-key {
+  --callout-tone: var(--print-callout-key);
+}
+
+.print-document .markdown-body .callout-practice {
+  --callout-tone: var(--print-callout-practice);
+}
+
+.print-document .markdown-body .callout-pitfall {
+  --callout-tone: var(--print-callout-pitfall);
+}
+
+.print-document .markdown-body .callout-insight {
+  --callout-tone: var(--print-callout-insight);
+}
+
+.print-document .markdown-body code {
+  border-color: var(--print-rule);
+  background: var(--print-technical-soft);
+  color: var(--print-technical);
+}
+
+.print-document .markdown-body pre {
+  break-inside: avoid-page;
+  border-color: var(--print-rule);
+  border-radius: 0;
+  background: var(--print-technical-soft);
+  overflow: visible;
+}
+
+.print-document .markdown-body pre code {
+  color: var(--print-ink);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.print-document .markdown-body table {
+  display: table;
+  width: 100%;
+  max-width: 100%;
+  table-layout: fixed;
+  border-color: var(--print-rule);
+  overflow: visible;
+}
+
+.print-document .markdown-body thead {
+  display: table-header-group;
+}
+
+.print-document .markdown-body tr {
+  break-inside: avoid-page;
+}
+
+.print-document .markdown-body th,
+.print-document .markdown-body td {
+  padding: 0.42em 0.55em;
+  border-color: var(--print-rule);
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.print-document .markdown-body th {
+  background: color-mix(in srgb, var(--print-structure) 8%, var(--print-paper));
+}
+
+.print-document .markdown-body img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 1.4em auto;
+  break-inside: avoid-page;
+  border-radius: 1px;
+}
+
+.print-document-footer {
+  margin-top: 3em;
+  padding-top: 0.8em;
+  border-top: 1px solid var(--print-rule);
+  color: var(--print-muted);
+  font-size: 7.5pt;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+}
+
+.print-preview[data-print-style="clean"] .print-document .markdown-body mark {
+  border-bottom: 1.5px solid #777777;
+  background: transparent;
+  box-shadow: none;
+  font-weight: 600;
+}
+
+.print-preview[data-print-style="clean"] .print-document .markdown-body .callout,
+.print-preview[data-print-style="clean"] .print-document .markdown-body blockquote {
+  border-color: #777777;
+  background: transparent;
+}
+
+.print-preview[data-print-style="clean"] .print-document .markdown-body .callout-label,
+.print-preview[data-print-style="clean"] .print-document .markdown-body a {
+  color: var(--print-ink);
+}
+
+.print-preview[data-print-style="clean"] .print-document .markdown-body th {
+  background: #eeeeee;
+}
+
+@media (max-width: 720px) {
+  .print-preview-controls {
+    grid-template-columns: 1fr auto;
+    gap: 8px 12px;
+    padding: 9px 12px;
+  }
+
+  .print-preview-label {
+    text-align: right;
+  }
+
+  .print-style-picker {
+    justify-self: start;
+  }
+
+  .print-preview-action {
+    justify-self: end;
+  }
+
+  .print-preview-stage {
+    padding: 18px 12px 40px;
+  }
+
+  .print-document {
+    padding: 30px 24px 42px;
+  }
+}
+
+@page {
+  size: A4 portrait;
+  margin: 18mm 17mm 19mm;
+}
+
+@media print {
+  html,
+  body {
+    min-height: auto;
+    background: #ffffff !important;
+  }
+
+  body::after,
+  .print-preview-controls {
+    display: none !important;
+  }
+
+  .print-preview {
+    min-height: auto;
+    background: transparent;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .print-preview-stage {
+    display: block;
+    padding: 0;
+    overflow: visible;
+  }
+
+  .print-document {
+    width: auto;
+    min-height: auto;
+    padding: 0;
+    background: #ffffff;
+    box-shadow: none;
+  }
+}

@@ -127,7 +127,8 @@ Hover 是底色變化加一點陰影（微浮起），active 用品牌色 highli
 
 右鍵，或滑上去點右上角的 `⋯`，都會開**同一個選單、同一份項目**
 （[`src/components/context-menu.tsx`](src/components/context-menu.tsx)）：開啟、釘選／
-取消釘選、複製 Markdown、匯出 Markdown、移至垃圾桶（沒有永久刪除，那只在垃圾桶裡做）。
+取消釘選、複製 Markdown、匯出 Markdown、匯出 PDF、移至垃圾桶（沒有永久刪除，那只在
+垃圾桶裡做）。
 
 - 選單用 portal 掛到 `body`：列表是 `overflow-y-auto` 的容器，畫在列裡面會被裁掉
 - `Esc`、點外面、捲動、改視窗大小都會關閉；關掉後焦點還給原本的元素
@@ -138,6 +139,28 @@ Hover 是底色變化加一點陰影（微浮起），active 用品牌色 highli
 - 「新增標籤／編輯標籤」是**同一個項目**（依有沒有標籤換字），做的事都是開啟筆記並把游標
   送進標籤欄。拆成兩個只會讓人先猜要按哪一個。跨頁的焦點靠 sessionStorage 的一次性旗標，
   同一頁則靠事件 —— 只做一條會有一半的情況失效
+
+### PDF 匯出
+
+單篇筆記的 `⋯ → 匯出 PDF` 會在新分頁開啟 `/n/[id]/print`。這不是伺服器生成 PDF binary，
+而是專門的 A4 Print Preview，再交給瀏覽器的「列印／儲存成 PDF」。獨立 route 位於工作區
+layout 外，所以不會載入 Sidebar、列表、Tabs、CodeMirror、autosave、scroll sync 或 Outline；
+頁面本身仍先 `requireUser()`，資料存取繼續受 Supabase RLS 保護。
+
+**renderer 沒有複製。** Print View 直接使用同一個 `MarkdownPreview`，因此 remark-gfm、
+螢光標記、callout、heading id 與圖片安全處理都跟螢幕預覽一致；差別只在集中於
+`globals.css` 的 print presentation。列印時圖片改成 eager loading，避免長文底部的 lazy image
+還沒進 viewport 就開始輸出。
+
+兩種樣式只改 presentation，不改 Markdown：
+
+- **Study**：保留低飽和 Structure Navy、四色 highlight、四種法律 callout 語義色、reference blue
+- **Clean**：移除大部分背景色，以灰階 border、underline 與 typography 保留層次，適合黑白列印
+
+頁面固定 A4 portrait 與正式 margin；heading 避免落在頁尾，短 callout／code／quote 與圖片
+盡量不跨頁，表格列不拆開、表頭可在新頁重複。Browser-native print 無法可靠提供跨瀏覽器的
+自訂頁碼與每頁 header/footer，因此 v1 不做 JS 手算分頁，也不引進 Puppeteer 或 PDF SaaS。
+文件 title 會設成「筆記標題 — NEXUM NOTE」，但實際儲存檔名仍由瀏覽器決定。
 
 **桌機預設欄寬**：側邊欄 `clamp(196px, 15vw, 208px)`（收合後 58px）、筆記列表
 `clamp(244px, 21vw, 268px)`、主工作區吃剩下的空間。用 clamp 而不是固定值 —— 在 2560 上
@@ -702,8 +725,14 @@ npm test          # 只跑測試
 [`tests/chinese-list.test.mjs`](tests/chinese-list.test.mjs) 共 24 項，涵蓋四套序列的
 辨識與遞增、上限、全形半形與大小寫的沿用，以及不該接手的寫法。
 
-[`tests/workspace.test.mjs`](tests/workspace.test.mjs) 共 22 項，涵蓋網址與分頁的對應、
+[`tests/workspace.test.mjs`](tests/workspace.test.mjs) 共 29 項，涵蓋網址與分頁的對應、
 關閉分頁後跳去哪一個、存壞的 localStorage 內容、列表的標題退場規則、`titleFromContent`
 與資料庫 generated column 的一致性，垃圾桶的保留期界線與刪檔的批次切法，存檔衝突要自動恢復還是停下來問人，以及搜尋結果的合併與排序。
+
+[`tests/ordered-list.test.mjs`](tests/ordered-list.test.mjs) 共 12 項，涵蓋中文輸入常見的半／全形
+數字、句點與空格容錯；[`tests/slash-commands.test.mjs`](tests/slash-commands.test.mjs) 共 8 項，
+涵蓋 Slash Command 的中英文搜尋與安全觸發範圍；
+[`tests/print-export.test.mjs`](tests/print-export.test.mjs) 共 7 項，涵蓋 Study/Clean、台北匯出日、
+安全 metadata、route path 與文件標題去重規則。總計 133 項。
 
 測試直接 import `.ts` 原始碼（Node 的型別剝離），不需要先編譯。
