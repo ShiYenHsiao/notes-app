@@ -4,12 +4,12 @@ import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
 
-import { filterNotes, noteMarkdown, togglePin, trashNote } from "@/lib/actions/notes";
+import { createNote, filterNotes, noteMarkdown, togglePin, trashNote } from "@/lib/actions/notes";
 import { displayTitle, type NoteSummary, type TagSummary } from "@/lib/note-display";
 import { printPath } from "@/lib/print-export";
 
 import { ContextMenu, useContextMenu } from "./context-menu";
-import { IconMore, IconPinned, IconSearch } from "./icons";
+import { IconMore, IconPinned, IconPlus, IconSearch } from "./icons";
 import { requestTagFocus } from "./tag-bar";
 
 /** 停止輸入多久後才真的送出搜尋。 */
@@ -26,7 +26,15 @@ export const FOCUS_SEARCH_EVENT = "nexum:focus-search";
 /** 操作結果的提示顯示多久。 */
 const TOAST_MS = 2200;
 
-export function NoteList({ notes, tags }: { notes: NoteSummary[]; tags: TagSummary[] }) {
+export function NoteList({
+  notes,
+  tags,
+  total,
+}: {
+  notes: NoteSummary[];
+  tags: TagSummary[];
+  total: number;
+}) {
   const params = useParams<{ id?: string }>();
   const activeId = params?.id;
 
@@ -89,7 +97,23 @@ export function NoteList({ notes, tags }: { notes: NoteSummary[]; tags: TagSumma
 
   return (
     <>
-      <div className="shrink-0 px-3 pt-3 pb-2.5">
+      <div className="flex h-[52px] shrink-0 items-center border-b border-border-subtle px-4">
+        <div className="min-w-0 flex-1">
+          <b className="block text-base font-semibold text-primary">筆記</b>
+          <span className="block text-2xs text-muted tabular-nums">共 {total} 則筆記</span>
+        </div>
+        <form action={createNote}>
+          <button
+            type="submit"
+            aria-label="新增筆記"
+            className="flex size-7 items-center justify-center rounded-md text-muted transition-colors hover:bg-hover hover:text-primary"
+          >
+            <IconPlus size={16} />
+          </button>
+        </form>
+      </div>
+
+      <div className="shrink-0 px-3 py-2.5">
         <div className="flex h-9 items-center gap-2 rounded-md border border-border-subtle bg-workspace px-2.5 transition-colors duration-150 focus-within:border-border-default focus-within:bg-elevated">
           <IconSearch size={15} className="shrink-0 text-ink-muted" />
           <input
@@ -254,14 +278,16 @@ function NoteRow({
           </b>
         </div>
 
-        <p className="truncate text-xs leading-tight text-faint">{note.excerpt || "尚無摘要"}</p>
-
-        <div className="flex items-center gap-2 text-xs text-muted">
+        <div className="flex items-center gap-2 text-2xs text-muted">
           <time className="shrink-0 tabular-nums">{note.updated_label}</time>
           {note.tags.length > 0 ? (
-            <span className="truncate">{note.tags.map((tag) => `#${tag}`).join("　")}</span>
+            <span className="truncate rounded-sm border border-border-subtle px-1.5 py-px">
+              {note.tags.map((tag) => tag).join("／")}
+            </span>
           ) : null}
         </div>
+
+        <p className="truncate text-xs leading-tight text-faint">{note.excerpt || "尚無摘要"}</p>
       </Link>
 
       {/*

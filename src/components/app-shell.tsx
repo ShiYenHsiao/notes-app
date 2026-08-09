@@ -40,7 +40,7 @@ export type NoteCounts = {
 };
 
 /**
- * 桌機三欄版面：側邊欄 ｜ 筆記列表 ｜ 工作區。
+ * 桌機四區版面：工具 rail ｜ 文件索引 ｜ Editor / Preview ｜ Outline。
  *
  * 手機是唯讀的兩層導覽，用同一份 DOM 靠 CSS 切換：沒開筆記時只顯示列表，
  * 開了筆記就只顯示內容。判斷依據是網址有沒有 /n/ 前綴。
@@ -76,6 +76,7 @@ function Shell({
   const noteOpen = pathname.startsWith("/n/") || pathname === "/help";
 
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [tagPanelOpen, setTagPanelOpen] = useState(false);
   const usedTags = tags.filter((tag) => tag.count > 0);
   const { focused } = useFocusMode();
 
@@ -101,105 +102,95 @@ function Shell({
     return () => window.removeEventListener("keydown", onKeyDown);
   }, []);
 
+  useEffect(() => {
+    if (!tagPanelOpen) {
+      return;
+    }
+    function closeOnEscape(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        setTagPanelOpen(false);
+      }
+    }
+    window.addEventListener("keydown", closeOnEscape);
+    return () => window.removeEventListener("keydown", closeOnEscape);
+  }, [tagPanelOpen]);
+
   return (
     <div className="flex h-dvh bg-background">
-      {/*
-        收合不是把側邊欄藏起來，而是縮成一條 icon rail：導覽入口全部留著，
-        滑上去有 tooltip。整條消失的話，收合狀態下想切到垃圾桶只能靠記網址。
-      */}
+      {/* Reference 的第一欄就是工具 rail；展開只增加短標籤，不回到舊版寬導覽。 */}
       <aside
         aria-hidden={focused || undefined}
-        className={`hidden shrink-0 flex-col overflow-hidden border-r border-border-subtle bg-sidebar pb-3 transition-[width,opacity,transform] duration-200 ease-out lg:flex ${
+        className={`hidden shrink-0 flex-col overflow-hidden border-r border-border-subtle bg-sidebar pb-2 transition-[width,opacity,transform] duration-200 ease-out lg:flex ${
           focused
             ? hidden
             : sidebarOpen
-              ? "w-[clamp(196px,15vw,208px)] px-3"
-              : "w-[58px] px-2"
+              ? "w-[92px] px-1.5 xl:w-[96px]"
+              : "w-[54px] px-1.5"
         }`}
       >
-        <div
-          className={`flex h-14 shrink-0 items-center gap-2.5 ${sidebarOpen ? "" : "justify-center"}`}
-        >
-          <NexumBadge size={sidebarOpen ? 32 : 30} />
-          {sidebarOpen ? <NexumWordmark /> : null}
+        <div className="flex h-[74px] shrink-0 items-center justify-center">
+          {sidebarOpen ? (
+            <NexumWordmark className="items-center text-center" />
+          ) : (
+            <NexumBadge size={30} />
+          )}
         </div>
 
-        <form action={createNote} className="pb-1.5">
+        <form action={createNote} className="pb-0.5">
           <SidebarAction
             label="新增筆記"
-            icon={<IconPlus size={17} />}
+            icon={<IconPlus size={18} />}
             compact={!sidebarOpen}
-            primary
           />
         </form>
 
-        <SidebarButton
-          label="搜尋筆記"
-          icon={<IconSearch size={17} />}
-          compact={!sidebarOpen}
-          onClick={() => window.dispatchEvent(new Event(FOCUS_SEARCH_EVENT))}
-        />
-
-        {/* 中段獨立捲動：標籤再多也不會把下面的方案卡與設定推出畫面 */}
-        <div className="mt-3 min-h-0 flex-1 overflow-y-auto">
-          {sidebarOpen ? (
-            <div className="px-2.5 pb-1.5">
-              <span className="eyebrow">工作區</span>
-            </div>
-          ) : null}
+        <div className="min-h-0 flex-1 overflow-y-auto pt-0.5">
           <nav className="grid gap-0.5">
             {/* 釘選是網址上的篩選條件，讀它需要 useSearchParams，所以要有 Suspense 邊界 */}
             <Suspense fallback={null}>
               <NoteScopeLinks
                 counts={counts}
-                onNotesPage={pathname === "/"}
+                onNotesPage={pathname === "/" || pathname.startsWith("/n/")}
                 compact={!sidebarOpen}
               />
             </Suspense>
+            <SidebarButton
+              label="搜尋"
+              icon={<IconSearch size={18} />}
+              compact={!sidebarOpen}
+              onClick={() => window.dispatchEvent(new Event(FOCUS_SEARCH_EVENT))}
+            />
+            <SidebarButton
+              label="標籤"
+              icon={<IconTag size={18} />}
+              compact={!sidebarOpen}
+              active={tagPanelOpen}
+              onClick={() => setTagPanelOpen((open) => !open)}
+            />
             <RailLink
               href="/help"
-              label="使用說明"
+              label="說明"
               active={pathname === "/help"}
-              icon={<IconBook size={17} />}
+              icon={<IconBook size={18} />}
               compact={!sidebarOpen}
               hint="內建頁面"
             />
             <RailLink
               href="/trash"
-              label="垃圾桶"
+              label="垃圾"
               count={counts.trashed}
               active={pathname === "/trash"}
-              icon={<IconTrash size={17} />}
+              icon={<IconTrash size={18} />}
               compact={!sidebarOpen}
             />
           </nav>
-
-          {/*
-            標籤在收合狀態下不顯示：標籤是名字，用 icon 表達不了，
-            擠成一個字的縮寫只會更難認。想用標籤就展開。
-          */}
-          {sidebarOpen ? (
-            <>
-              <div className="mt-5 px-2.5 pb-1">
-                <span className="eyebrow">標籤</span>
-              </div>
-              {usedTags.length === 0 ? (
-                <p className="px-2.5 text-xs text-ink-muted">還沒有標籤</p>
-              ) : (
-                <nav className="grid gap-0.5">
-                  <Suspense fallback={null}>
-                    <TagLinks tags={usedTags} />
-                  </Suspense>
-                </nav>
-              )}
-            </>
-          ) : null}
         </div>
 
-        <div className="grid shrink-0 gap-2 pt-3">
+        <div className="grid shrink-0 gap-1 pt-2">
           {sidebarOpen ? <PlanCard used={counts.all} /> : null}
 
-          <div className={`flex items-center gap-1 ${sidebarOpen ? "" : "flex-col"}`}>
+          <div className="flex flex-col items-center gap-0.5">
             <SettingsMenu compact={!sidebarOpen} />
 
             <Tooltip label={sidebarOpen ? "收合側邊欄" : "展開側邊欄"} shortcut="⌘\">
@@ -208,7 +199,7 @@ function Shell({
                 onClick={() => setSidebarOpen((open) => !open)}
                 aria-label={`${sidebarOpen ? "收合" : "展開"}側邊欄`}
                 aria-expanded={sidebarOpen}
-                className="flex size-8 items-center justify-center rounded-md text-ink-muted transition-colors duration-150 hover:bg-accent-soft hover:text-accent"
+                className="flex size-8 items-center justify-center rounded-md text-muted transition-colors duration-150 hover:bg-hover hover:text-primary"
               >
                 <IconSidebar size={16} />
               </button>
@@ -217,15 +208,41 @@ function Shell({
         </div>
       </aside>
 
+      {tagPanelOpen && !focused ? (
+        <>
+          <button
+            type="button"
+            aria-label="關閉標籤選單"
+            onClick={() => setTagPanelOpen(false)}
+            className="fixed inset-0 z-40 cursor-default"
+          />
+          <section className="fixed top-[74px] left-[92px] z-50 w-60 overflow-hidden rounded-lg border border-border-default bg-elevated shadow-pop xl:left-[96px]">
+            <div className="flex h-10 items-center border-b border-border-subtle px-3">
+              <span className="eyebrow">標籤篩選</span>
+              <span className="ml-auto text-2xs text-muted">右鍵管理</span>
+            </div>
+            {usedTags.length === 0 ? (
+              <p className="px-3 py-6 text-sm text-muted">還沒有標籤</p>
+            ) : (
+              <nav className="max-h-[min(60vh,420px)] overflow-y-auto p-1.5">
+                <Suspense fallback={null}>
+                  <TagLinks tags={usedTags} onNavigate={() => setTagPanelOpen(false)} />
+                </Suspense>
+              </nav>
+            )}
+          </section>
+        </>
+      ) : null}
+
       <section
         aria-hidden={focused || undefined}
         className={`w-full shrink-0 flex-col overflow-hidden border-r border-border-subtle bg-list transition-[width,opacity,transform] duration-200 ease-out md:flex ${
           noteOpen ? "hidden" : "flex"
-        } ${focused ? `md:w-0 ${hidden}` : "md:w-[clamp(244px,21vw,268px)]"}`}
+        } ${focused ? `md:w-0 ${hidden}` : "md:w-[clamp(246px,18vw,300px)]"}`}
       >
         {/* useSearchParams 需要 Suspense 邊界 */}
         <Suspense fallback={<div className="flex-1" />}>
-          <NoteList notes={notes} tags={tags} />
+          <NoteList notes={notes} tags={tags} total={counts.all} />
         </Suspense>
 
         {/* 側邊欄在小螢幕收起來了，新增按鈕改放這裡 */}
@@ -294,14 +311,19 @@ function NoteScopeLinks({
   );
 }
 
-function TagLinks({ tags }: { tags: TagSummary[] }) {
+function TagLinks({ tags, onNavigate }: { tags: TagSummary[]; onNavigate: () => void }) {
   const searchParams = useSearchParams();
   const activeTagId = searchParams.get("tag");
 
   return (
     <>
       {tags.map((tag) => (
-        <TagRow key={tag.id} tag={tag} active={tag.id === activeTagId} />
+        <TagRow
+          key={tag.id}
+          tag={tag}
+          active={tag.id === activeTagId}
+          onNavigate={onNavigate}
+        />
       ))}
     </>
   );
@@ -313,7 +335,15 @@ function TagLinks({ tags }: { tags: TagSummary[] }) {
  * 改名做成原地編輯而不是跳一個對話框 —— 改標籤名是「順手修正」等級的動作，
  * 不值得中斷整個畫面。
  */
-function TagRow({ tag, active }: { tag: TagSummary; active: boolean }) {
+function TagRow({
+  tag,
+  active,
+  onNavigate,
+}: {
+  tag: TagSummary;
+  active: boolean;
+  onNavigate: () => void;
+}) {
   const menu = useContextMenu();
   const [editing, setEditing] = useState(false);
   const [, startTagAction] = useTransition();
@@ -348,14 +378,18 @@ function TagRow({ tag, active }: { tag: TagSummary; active: boolean }) {
 
   return (
     <div onContextMenu={menu.openAtPointer}>
-      <RailLink
+      <Link
         href={`/?tag=${tag.id}`}
-        label={tag.name}
-        count={tag.count}
-        active={active}
-        icon={<IconTag size={15} className="opacity-70" />}
-        compact={false}
-      />
+        onClick={onNavigate}
+        aria-current={active ? "page" : undefined}
+        className={`relative flex h-8 items-center gap-2 rounded-md px-2.5 text-sm transition-colors ${
+          active ? "bg-active text-primary" : "text-secondary hover:bg-hover hover:text-primary"
+        }`}
+      >
+        <IconTag size={14} className="shrink-0 opacity-70" />
+        <span className="min-w-0 flex-1 truncate">{tag.name}</span>
+        <span className="text-2xs text-muted tabular-nums">{tag.count}</span>
+      </Link>
 
       {menu.position ? (
         <ContextMenu
@@ -405,8 +439,10 @@ function RailLink({
     <Link
       href={href}
       aria-current={active ? "page" : undefined}
-      className={`relative flex h-9.5 items-center gap-2.5 rounded-md text-base transition-colors duration-150 ${
-        compact ? "w-9.5 justify-center px-0" : "px-2.5"
+      className={`relative flex items-center rounded-md transition-colors duration-150 ${
+        compact
+          ? "h-10 w-full justify-center"
+          : "h-[54px] w-full flex-col justify-center gap-0.5 px-1 text-sm"
       } ${
         active
           ? "bg-active font-medium text-primary"
@@ -422,10 +458,10 @@ function RailLink({
       <span className="shrink-0">{icon}</span>
       {compact ? null : (
         <>
-          <span className="truncate">{label}</span>
+          <span className="max-w-full truncate">{label}</span>
           {/* 計數是參考資訊，壓到最輕 —— 它不該跟項目名稱競爭 */}
           {count === undefined ? null : (
-            <span className="ml-auto shrink-0 text-2xs text-ink-muted/70 tabular-nums">
+            <span className="absolute top-0.5 right-1 shrink-0 text-2xs text-faint tabular-nums">
               {count}
             </span>
           )}
@@ -459,12 +495,12 @@ function SidebarAction({
       <button
         type="submit"
         aria-label={label}
-        className={`flex h-9.5 w-full items-center gap-2.5 rounded-md text-base transition-colors duration-150 ${
-          compact ? "justify-center px-0" : "px-2.5"
+        className={`flex w-full items-center rounded-md transition-colors duration-150 ${
+          compact ? "h-10 justify-center" : "h-[54px] flex-col justify-center gap-0.5 px-1 text-sm"
         } ${
           primary
-            ? "bg-action text-white shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--accent-fill)_72%,black)] hover:bg-action/90"
-            : "text-muted hover:bg-hover hover:text-primary"
+            ? "bg-active text-primary shadow-[inset_2px_0_0_var(--accent-gold)]"
+            : "text-secondary hover:bg-hover hover:text-primary"
         }`}
       >
         <span className="shrink-0">{icon}</span>
@@ -478,11 +514,13 @@ function SidebarButton({
   label,
   icon,
   compact,
+  active = false,
   onClick,
 }: {
   label: string;
   icon: React.ReactNode;
   compact: boolean;
+  active?: boolean;
   onClick: () => void;
 }) {
   return (
@@ -491,11 +529,11 @@ function SidebarButton({
         type="button"
         onClick={onClick}
         aria-label={label}
-        className={`flex h-9.5 w-full items-center gap-2.5 rounded-md text-base text-secondary transition-colors duration-150 hover:bg-hover hover:text-primary ${
-          compact ? "justify-center px-0" : "px-2.5"
-        }`}
+        className={`flex w-full items-center rounded-md transition-colors duration-150 ${
+          compact ? "h-10 justify-center" : "h-[54px] flex-col justify-center gap-0.5 px-1 text-sm"
+        } ${active ? "bg-active text-primary" : "text-secondary hover:bg-hover hover:text-primary"}`}
       >
-        <span className="shrink-0 text-ink-muted">{icon}</span>
+        <span className="shrink-0">{icon}</span>
         {compact ? null : <span className="truncate">{label}</span>}
       </button>
     </Tooltip>
@@ -533,11 +571,12 @@ function SettingsMenu({ compact }: { compact: boolean }) {
           type="button"
           onClick={menu.openBelow}
           aria-label="設定"
-          className={`flex size-8 items-center justify-center rounded-md text-ink-muted transition-colors duration-150 hover:bg-accent-soft hover:text-accent ${
-            compact ? "" : "mr-auto"
+          className={`flex items-center justify-center rounded-md text-muted transition-colors duration-150 hover:bg-hover hover:text-primary ${
+            compact ? "size-8" : "h-12 w-full flex-col gap-0.5 text-xs"
           }`}
         >
           <IconSettings size={16} />
+          {compact ? null : <span>設定</span>}
         </button>
       </Tooltip>
 

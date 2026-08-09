@@ -3,7 +3,7 @@
 設計系統與版面結構的參考。動 UI 之前先讀這份；每一條背後的取捨在
 [`README.md`](../README.md)。
 
-目前版本：**Visual Identity v4 — Academic IDE × Digital Legal Textbook**。
+目前版本：**Reference-Matched Reconstruction — Academic IDE × Digital Legal Textbook**。
 
 視覺方向：**Premium／Academic／Focused／Calm／Precise**。
 不是 dashboard，不是後台管理系統，不是 SaaS 模板。
@@ -21,8 +21,8 @@
 | 項目 | 內容 |
 |---|---|
 | 名稱 | NEXUM NOTE。品牌是 NEXUM，NOTE 是產品名 |
-| 標誌 | 幾何化的 N，兩端各一個節點（`src/components/logo.tsx`）。**不要用書本、法槌、天秤** |
-| 文字標 | NEXUM 放大加字距，NOTE 退成副標 |
+| 標誌 | 參考圖的襯線文字標（`src/components/logo.tsx`）。**不要用書本、法槌、天秤** |
+| 文字標 | NEXUM 放大加字距，NOTE 置中退成副標；窄 rail 仍保留完整辨識度 |
 | 語氣 | 不用驚嘆號，不催促，不推銷 |
 
 **色彩語義**（不要混用）：
@@ -50,7 +50,8 @@
 | `--border-subtle` / `--border-default` | 區域收邊與真正需要 boundary 的互動元件 |
 | `--text-primary` / `--text-secondary` / `--text-muted` / `--text-faint` | 四階文字 hierarchy |
 | `--syntax-mark` | 編輯器裡 Markdown 符號（`#`、`**`、`==`、`>`）的暖灰 |
-| `--structure` / `--syntax-structure` | 標題、清單、引用與中文法律條列 marker |
+| `--structure` / `--syntax-structure` | Markdown 標題、清單與引用的低飽和結構藍 |
+| `--gold` / `--gold-muted` | 中文法律條列、有序清單 marker 與知識層級強調 |
 | `--reference` / `--reference-muted` | 連結文字、URL 與外部參照 |
 | `--technical` / `--technical-soft` | Code、delimiter 與 Markdown mechanics |
 | `--accent` / `--accent-soft` | 墨藍與它的淡底 |
@@ -92,33 +93,29 @@
 ## 版面
 
 ```
-┌─────────┬──────────────┬────────────────────────────────┐
-│ Sidebar │  Note List   │  Workspace                     │
-│         │              │  ┌──────────────────────────┐  │
-│ 品牌    │  [搜尋]      │  │ Tab Bar        38px      │  │
-│ 新增    │              │  ├──────────────────────────┤  │
-│ 搜尋    │  筆記 A      │  │ 標題 + 標籤 + 操作        │  │
-│ ─────   │  筆記 B      │  ├──────────────────────────┤  │
-│ 所有    │  筆記 C      │  │ Toolbar        40px      │  │
-│ 釘選    │              │  ├────────────┬──────┬─────┤  │
-│ 說明    │              │  │ Editor 45% │ 55%  │大綱 │  │
-│ 垃圾桶  │              │  │            │      │208px│  │
-│ ─────   │              │  └────────────┴──────┴─────┘  │
-│ 標籤    │              │            [已儲存]            │
-│ 額度卡  │              │                                │
-└─────────┴──────────────┴────────────────────────────────┘
- clamp        clamp
- 196-208px    244-268px
+┌────────┬──────────────┬───────────────────────────────────┐
+│  Rail  │  Note Index  │  Workspace                        │
+│  96px  │  246–300px   │  ┌─────────────────────────────┐  │
+│ 品牌   │ 筆記／總數   │  │ Tabs              36px      │  │
+│ 新增   │ [搜尋]       │  ├─────────────────────────────┤  │
+│ 所有   │ 筆記 A       │  │ Note header        36px     │  │
+│ 釘選   │ 筆記 B       │  ├─────────────────────────────┤  │
+│ 搜尋   │ 筆記 C       │  │ Toolbar            32px     │  │
+│ 標籤   │              │  ├──────────────┬────────┬─────┤  │
+│ 說明   │              │  │ Editor 50%   │ 50%    │大綱 │  │
+│ 垃圾   │              │  │              │        │196px│  │
+│ 額度   │              │  └──────────────┴────────┴─────┘  │
+└────────┴──────────────┴───────────────────────────────────┘
 ```
 
 寬度用 `clamp()` 而不是固定值：2560 上導覽不該跟著變胖，1280 上也不該把工作區擠死。
 
 | 區域 | 尺寸 |
 |---|---|
-| Sidebar | `clamp(196px, 15vw, 208px)`，收合後 58px（icon rail） |
-| Note List | `clamp(244px, 21vw, 268px)` |
-| Editor / Preview | 45 / 55（讀比寫原始語法重要一點） |
-| Outline | 208px，用寬度收合而不是卸載 |
+| Sidebar | 92px（`xl` 以上 96px），收合後 54px；始終是 reference 的 icon rail |
+| Note List | `clamp(246px, 18vw, 300px)` |
+| Editor / Preview | 50 / 50；source 與閱讀面在 reference 裡同為主角 |
+| Outline | 196px；1280px 以上 supporting column，1024px 是同元件 overlay |
 | 閱讀行寬 | 預覽 `68ch`、編輯 `74ch`（純寫作模式 60rem 並連同行號一起置中） |
 
 ---
@@ -126,16 +123,18 @@
 ## 各區規格
 
 ### Sidebar
-品牌區 56px → 新增筆記 → 搜尋筆記 → 導覽 → 標籤 → 額度卡 → 設定與收合。
+品牌文字標 → 新增筆記 → 垂直 icon navigation → 額度提醒 → 設定與收合。標籤管理沿用原本
+資料與選單，但從 rail 以窄幅浮層展開，不讓低頻標籤清單永久撐寬主導覽。
 
-- 導覽列高 38px、圖示 17px、文字 14px
+- 導覽項目高 54px、圖示 17px、短標籤 14px；收合後為 40px icon-only 項目
 - Active：`surface-active` + 左側一條短暖金 indicator。**不要用邊框** —— 一整排項目時邊框會互相干擾
 - 計數 10px 且更淡，它是參考資訊
 - 收合是縮成 icon rail 而不是整條藏起來，每個入口都有 tooltip
-- 額度卡：`surface-workspace/45`、無陰影、暖金只在進度條與 Scholar Free 標記上
+- 額度提醒：無卡片陰影，暖金只在細進度線與狀態文字，不保留假的付費層級敘事
 
 ### Note List
-扁平列表，**不要卡片牆**。每列 76px：標題 14px、單行摘要、時間與標籤。摘要直接使用
+頂端先交代「筆記／總數」與新增入口，再接搜尋。列表仍是扁平列表，**不要卡片牆**。
+每列 76px：標題 14px、時間與標籤、單行摘要。摘要直接使用
 列表原本已取得的 excerpt，不增加 query；靠文字階層提高密度，不用更小的主要字體。
 
 - Active：`surface-active` + 左側 2px 暖金 indicator
@@ -144,12 +143,12 @@
 - 右鍵與 hover 的 `⋯` 開**同一個選單、同一份項目**
 
 ### Workspace Header
-標題（15px 襯線）+ 標籤 chips + 操作。三種檢視用一組 28px segmented control 顯示
+標題（14px 襯線）+ 標籤 chips + 操作。三種檢視用一組 28px segmented control 顯示
 目前狀態；高頻的留檯面上（大綱、專注模式），
 低頻的收進 `⋯`（釘選、移至垃圾桶）。版本紀錄自帶面板所以保留獨立按鈕。
 
 ### Toolbar
-高 40px、按鈕 28×28、圖示 16px。四組用**非常淡**的分隔線斷開：
+高 32px、按鈕 24×24、圖示 15px。四組用**非常淡**的分隔線斷開：
 復原重做 ｜ 文字格式 ｜ 清單 ｜ 插入 ｜ 更多。
 
 - 每個按鈕都要有 tooltip（名稱 + 快捷鍵）與 `aria-label`
@@ -161,9 +160,9 @@
 
 - 行號縮到 39px、對比壓到 45%
 - 游標所在行用低於 5% 的 structure tint，維持可辨識但不形成色帶
-- Markdown 只用四個低飽和語義家族：結構墨藍、知識暖金、引用藍、技術紫灰
-- Header／List／Quote marker 由 Lezer syntax tree 精準標示；清單正文維持正常墨色
-- 中文法律條列 marker 重用既有 parser，只裝飾可見行，不另寫一套輸入規則
+- Markdown 使用低飽和語義家族：結構藍、法律層級暖金、引用藍、技術紫灰
+- Header／List／Quote marker 由 Lezer syntax tree 精準標示；標準 Markdown 結構維持藍色，正文維持正常墨色
+- 中文法律條列與數字有序清單 marker 使用暖金；重用既有 parser，只裝飾可見行，不另寫輸入規則
 - 四色螢光筆只掃描可見行並排除 code context，不修改 Markdown source
 - 15px / 1.85 行高 —— 這裡打的是中文不是程式碼
 - 游標 2px 墨藍，不做動畫
@@ -171,12 +170,12 @@
 ### Preview
 這是主要閱讀介面，當成**法律教材閱讀模式**而不是 Markdown output。
 
-- 68ch、行高 1.8、襯線體
+- 68ch、15px／1.75 行高、襯線體；密度以 1440 reference 一屏可掃讀的章節量為準
 - 標題各給一個額外訊號：h1 底線、h2 墨藍短標記、h3 無襯線、h4 降階灰
   （中文標題沒有大小寫可以拉開差異，只靠字級分不出來）
 - 段距 1.05em、標題上緣 2em 下緣 0.55em、標題接標題不留兩層
 - 巢狀清單換記號（disc → circle → square）
-- 引用：淡墨藍底 + 左線（法律筆記裡引用通常是判決或條文原文）
+- 引用：極淡中性底 + 暖金左線與斜體（法律筆記裡引用通常是判決或條文原文）
 - 表格改無襯線縮一階字（那是拿來掃的資料）
 - 備註框底色只有 6%，層級靠左線與標籤，不靠色塊面積
 - Wiki Link resolved 沿用低飽和 reference blue；unresolved／ambiguous 改淡並用虛線底線，
@@ -208,7 +207,7 @@
 ### Outline
 永遠掛著、用寬度收合（200ms）。長大綱自己捲。當前章節只用文字對比 + 左側短金線，
 不鋪大面積 active background；捲動時跟著換（`use-active-heading.ts`，rAF throttle）。
-1280px 以上是 208px supporting column；1024–1100px 改成同元件的 overlay presentation，
+1280px 以上是 196px supporting column；1024–1279px 改成同元件的 overlay presentation，
 避免同時擠壓 Editor 與 Preview，state、active heading 與 click navigation 都不另建一套。
 
 ---
@@ -224,7 +223,7 @@
 | 組合 | 畫面 |
 |---|---|
 | 專注 + `⌘1` | 純寫作。編輯器連行號一起置中在 60rem |
-| 專注 + `⌘2` | 45 / 55 |
+| 專注 + `⌘2` | 50 / 50 |
 | 專注 + `⌘3` | 純閱讀。只剩標題、標籤與 68ch 閱讀欄，上下留白加大 |
 
 大綱在專注模式預設收起（兩種模式各記一份開合狀態），但隨時可以打開。

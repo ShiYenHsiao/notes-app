@@ -50,9 +50,12 @@ export function NexumBadge({ size = 32, className }: { size?: number; className?
  */
 export function NexumWordmark({ className }: { className?: string }) {
   return (
-    <span className={`flex min-w-0 flex-col leading-tight ${className ?? ""}`}>
-      <b className="truncate text-base font-semibold tracking-[0.16em] text-primary">NEXUM</b>
-      <span className="truncate text-2xs font-medium tracking-[0.24em] text-gold">NOTE</span>
+    <span
+      className={`flex min-w-0 flex-col leading-tight ${className ?? ""}`}
+      style={{ fontFamily: "var(--font-serif)" }}
+    >
+      <b className="truncate text-lg font-semibold tracking-[0.1em] text-primary">NEXUM</b>
+      <span className="truncate text-sm tracking-[0.14em] text-primary">NOTE</span>
     </span>
   );
 }

@@ -957,6 +957,8 @@ const CODE_CONTEXT_NODES = new Set(["InlineCode", "FencedCode", "CodeBlock", "Co
  */
 const EDITOR_HIGHLIGHT_PATTERN = /==([^=\n]+)==(?:\{([gpb])\})?/g;
 const CALLOUT_MARK_PATTERN = /^(\s*>\s*)\[!(KEY|PRACTICE|PITFALL|INSIGHT)\]/;
+// 只做 presentation：標準 Markdown ordered marker 與法律筆記常見的括號數字維持原文。
+const LEGAL_ORDERED_MARK_PATTERN = /^(\s{0,3})(?:\d+[.)]|\(\d+\)|（[０-９\d]+）)(?=[\t \u3000])/;
 
 const setWikiResolutions = StateEffect.define<WikiLinkResolution[]>();
 const wikiResolutionField = StateField.define<ReadonlyMap<string, WikiLinkResolution>>({
@@ -1034,6 +1036,7 @@ function buildAcademicDecorations(view: EditorView): DecorationSet {
 
       const line = view.state.doc.line(number);
       decorateChineseListMarker(line.from, line.text, ranges);
+      decorateLegalOrderedMarker(line.from, line.text, tree, ranges);
       decorateEditorHighlights(line.from, line.text, tree, ranges);
       decorateCalloutMarker(line.from, line.text, ranges);
       decorateWikiLinks(view, line.from, line.text, tree, ranges);
@@ -1058,12 +1061,38 @@ function decorateWikiLinks(
       continue;
     }
     const status = resolutions.get(link.title)?.status ?? "unresolved";
+    const titleFrom = from + 2;
+    const titleTo = to - 2;
     ranges.push(
-      Decoration.mark({
-        class: `cm-wikiLink cm-wikiLink-${status}`,
-      }).range(from, to),
+      Decoration.mark({ class: "cm-wikiLinkBracket" }).range(from, titleFrom),
+      Decoration.mark({ class: `cm-wikiLink cm-wikiLink-${status}` }).range(
+        titleFrom,
+        titleTo,
+      ),
+      Decoration.mark({ class: "cm-wikiLinkBracket" }).range(titleTo, to),
     );
   }
+}
+
+function decorateLegalOrderedMarker(
+  lineFrom: number,
+  text: string,
+  tree: ReturnType<typeof syntaxTree>,
+  ranges: Range<Decoration>[],
+) {
+  if (parseChineseListMarker(text)) {
+    return;
+  }
+  const match = LEGAL_ORDERED_MARK_PATTERN.exec(text);
+  if (!match) {
+    return;
+  }
+  const from = lineFrom + match[1].length;
+  const to = lineFrom + match[0].length;
+  if (isCodeContext(tree.resolveInner(from, 1))) {
+    return;
+  }
+  ranges.push(Decoration.mark({ class: "cm-legalListMark" }).range(from, to));
 }
 
 function decorateChineseListMarker(
@@ -1176,7 +1205,7 @@ const syntax = HighlightStyle.define([
     fontWeight: "600",
   },
   { tag: tags.strong, color: "var(--ink)", fontWeight: "650" },
-  { tag: tags.emphasis, color: "var(--technical)", fontStyle: "italic" },
+  { tag: tags.emphasis, color: "var(--ink)", fontStyle: "italic" },
   { tag: tags.link, color: "var(--reference)" },
   { tag: tags.url, color: "var(--reference-muted)" },
   {
@@ -1263,20 +1292,24 @@ const theme = EditorView.theme({
   },
   ".cm-activeLineGutter": {
     backgroundColor: "transparent",
-    color: "var(--accent)",
+    color: "var(--structure)",
   },
   ".cm-cursor": {
     borderLeftColor: "var(--accent)",
     borderLeftWidth: "2px",
   },
   "&.cm-focused .cm-selectionBackground, .cm-selectionBackground, ::selection": {
-    backgroundColor: "color-mix(in srgb, var(--accent-soft) 88%, transparent)",
+    backgroundColor: "color-mix(in srgb, var(--structure) 22%, transparent)",
   },
 
-  // Markdown 結構 marker 與中文法律條列共用同一個 restrained navy。
-  ".cm-structureMark, .cm-legalListMark": {
+  // Markdown 結構維持 cool blue；法律編號則依 reference 單獨使用 muted gold。
+  ".cm-structureMark": {
     color: "var(--syntax-structure)",
     fontWeight: "600",
+  },
+  ".cm-legalListMark": {
+    color: "var(--gold)",
+    fontWeight: "650",
   },
   ".cm-technicalMark": {
     color: "var(--technical)",
@@ -1322,6 +1355,9 @@ const theme = EditorView.theme({
     textDecoration: "underline",
     textDecorationColor: "color-mix(in srgb, var(--reference) 42%, transparent)",
     textUnderlineOffset: "0.2em",
+  },
+  ".cm-wikiLinkBracket": {
+    color: "color-mix(in srgb, var(--reference-muted) 62%, var(--syntax-mark))",
   },
   ".cm-wikiLink-unresolved, .cm-wikiLink-ambiguous": {
     color: "var(--ink-muted)",

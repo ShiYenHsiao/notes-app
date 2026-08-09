@@ -27,7 +27,7 @@ export function NoteTabs({ notes }: { notes: NoteSummary[] }) {
     <div
       role="tablist"
       aria-label="開啟中的筆記"
-      className="hidden h-9.5 shrink-0 items-stretch gap-px overflow-x-auto border-b border-border-subtle bg-list px-1 md:flex"
+      className="hidden h-9 shrink-0 items-stretch gap-px overflow-x-auto border-b border-border-subtle bg-list px-1 md:flex"
     >
       {tabs.ids.map((id) => (
         <Tab
@@ -67,7 +67,7 @@ function Tab({
 
   return (
     <div
-      className={`group relative flex max-w-[200px] min-w-0 items-center gap-1.5 border-t-2 px-3 text-sm transition-colors duration-150 ${
+      className={`group relative flex max-w-[184px] min-w-0 items-center gap-1.5 border-t-2 px-3 text-sm transition-colors duration-150 ${
         active
           ? "border-t-gold bg-workspace text-primary"
           : "border-t-transparent text-muted hover:bg-hover hover:text-primary"

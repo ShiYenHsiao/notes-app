@@ -179,17 +179,17 @@ export function NoteView({
       */}
       <header
         className={`shrink-0 border-b border-border-subtle bg-workspace transition-[padding] duration-200 ease-out ${
-          focused ? "px-6 pt-2.5 pb-2" : "px-5 pt-3 pb-2.5"
+          focused ? "px-5 py-0.5" : "px-3 py-0.5"
         }`}
       >
-        <div className="flex items-center gap-3">
+        <div className="flex min-h-7 items-center gap-2.5">
           <Link href="/" className="shrink-0 text-sm text-ink-muted hover:text-accent md:hidden">
             ← 返回
           </Link>
 
-          <div className="flex min-w-0 flex-1 items-center gap-2.5">
+          <div className="flex min-w-0 flex-1 items-center gap-2">
             <h1
-              className={`min-w-0 truncate border-l-2 border-gold pl-3 text-lg font-semibold ${
+              className={`max-w-[180px] min-w-0 shrink truncate text-sm font-semibold ${
                 title ? "" : "text-ink-muted"
               }`}
               style={{ fontFamily: "var(--font-serif)" }}
@@ -202,6 +202,8 @@ export function NoteView({
                 專注
               </span>
             ) : null}
+
+            <TagBar noteId={note.id} initialTags={noteTags} allTags={allTags} />
           </div>
 
           <div className="hidden shrink-0 md:block">
@@ -251,9 +253,6 @@ export function NoteView({
           </div>
         </div>
 
-        <div className="mt-1.5">
-          <TagBar noteId={note.id} initialTags={noteTags} allTags={allTags} />
-        </div>
       </header>
 
       {save.status === "conflict" || save.status === "error" ? (
@@ -334,14 +333,14 @@ export function NoteView({
       <div className="relative flex min-w-0 flex-1 overflow-hidden">
         {showEditor ? (
           /*
-           * 分割時 45 / 55 —— 這是法律學習工具，讀比寫原始語法重要一點。
+           * Reference 的 Editor / Preview 幾乎等寬；兩邊都是主角，不再沿用舊版 45 / 55。
            * 只有編輯區時給它一個置中的書寫欄（寬度由 --editor-measure 控制，
            * 編輯器的主題會讀它），不然在 27 吋螢幕上一行會拉到一千多 px。
            */
           <div
             className={`min-w-0 bg-surface transition-[flex-basis] duration-200 ease-out ${
               showPreview
-                ? "flex-1 basis-[45%] border-r border-border-subtle"
+                ? "flex-1 basis-1/2 border-r border-border-subtle"
                 : // 置中的是整個編輯器（含行號）而不是只有文字 —— 只置中文字的話，
                   // 行號會貼在視窗最左邊，跟它標示的那一行隔著半個螢幕
                   "mx-auto w-full max-w-[60rem]"
@@ -367,7 +366,7 @@ export function NoteView({
           <div
             ref={previewRef}
             className={`min-w-0 overflow-y-auto bg-workspace px-6 transition-[flex-basis,padding] duration-200 ease-out lg:px-8 ${
-              showEditor ? "flex-1 basis-[55%] py-8" : focused ? "w-full py-16" : "w-full py-10"
+              showEditor ? "flex-1 basis-1/2 py-6" : focused ? "w-full py-14" : "w-full py-9"
             }`}
           >
             <MarkdownPreview
@@ -706,7 +705,7 @@ function HeaderButton({
         onClick={onClick}
         aria-label={ariaLabel}
         aria-pressed={pressed}
-        className={`flex size-8 items-center justify-center rounded-md transition-colors duration-150 hover:bg-hover ${
+        className={`flex size-7 items-center justify-center rounded-md transition-colors duration-150 hover:bg-hover ${
           pressed ? "bg-active text-primary" : "text-muted hover:text-primary"
         }`}
       >

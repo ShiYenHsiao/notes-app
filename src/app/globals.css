@@ -4,7 +4,7 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 /*
- * Visual Identity v4：Dark 是 Academic IDE，Light 是 Digital Legal Textbook。
+ * Reference Reconstruction：Dark 與 Light 各自對照視覺稿，不是互相反相。
  *
  * 語義 token 先描述「這個顏色負責什麼」，舊元件使用的短名稱再映射回來。這讓既有
  * presentation class 不必一次全換掉，也避免 component 自己決定深淺色 hex。
@@ -12,36 +12,37 @@
 :root {
   color-scheme: light dark;
 
-  --background: light-dark(#e8e4da, #0a1017);
-  --surface-sidebar: light-dark(#ebe7dd, #0d151e);
-  --surface-list: light-dark(#f2efe7, #111a25);
-  --surface-workspace: light-dark(#faf8f2, #151f2b);
-  --surface-editor: light-dark(#fdfbf6, #192431);
-  --surface-elevated: light-dark(#fffdf8, #202d3b);
-  --surface-hover: light-dark(#e9ece9, #1d2a38);
-  --surface-active: light-dark(#dfe7e8, #25374a);
+  --background: light-dark(#f2eee6, #061321);
+  --surface-sidebar: light-dark(#f6f2ea, #071727);
+  --surface-list: light-dark(#fbf8f1, #0a1929);
+  --surface-workspace: light-dark(#faf7f0, #0b1a2b);
+  --surface-editor: light-dark(#fffdf9, #0d1e30);
+  --surface-elevated: light-dark(#fffdf8, #12263a);
+  --surface-hover: light-dark(#f1ece3, #11243a);
+  --surface-active: light-dark(#f6eedf, #162a40);
 
-  --border-subtle: light-dark(#dfdbd1, #253240);
-  --border-default: light-dark(#cec9be, #354657);
+  --border-subtle: light-dark(#e2ddd4, #203247);
+  --border-default: light-dark(#d1cbc0, #31465e);
 
-  --text-primary: light-dark(#27343e, #e5eaed);
-  --text-secondary: light-dark(#5d666b, #b8c1c8);
-  --text-muted: light-dark(#7d8382, #8e9aa5);
-  --text-faint: light-dark(#a2a39d, #65727e);
+  --text-primary: light-dark(#303944, #d8dee3);
+  --text-secondary: light-dark(#5e6670, #aeb9c3);
+  --text-muted: light-dark(#7f858c, #7f8d9b);
+  --text-faint: light-dark(#a0a19f, #5f6d7b);
 
-  --accent-gold: light-dark(#9b7939, #c9aa6c);
-  --accent-gold-muted: light-dark(#eee4ce, #30291d);
-  --accent-fill: light-dark(#285a79, #416d8b);
-  --heading-accent: light-dark(#285a79, #c9aa6c);
-  --structure: light-dark(#3e6682, #89abc4);
-  --reference: light-dark(#2d6f9d, #79add1);
-  --reference-muted: light-dark(#6a8496, #91a8ba);
-  --technical: light-dark(#71677d, #ad9fba);
-  --technical-soft: light-dark(#f0edf2, #292632);
-  --success: light-dark(#397259, #74b493);
-  --warning: light-dark(#9f6b2f, #d4a35d);
-  --danger: light-dark(#aa453d, #dc8177);
-  --danger-soft: light-dark(#f6e5e0, #352225);
+  --accent-gold: light-dark(#ad7d29, #d0a458);
+  --accent-gold-muted: light-dark(#f2e8d4, #30271a);
+  --accent-fill: light-dark(#214f7c, #315f88);
+  --heading-accent: light-dark(#173e68, #d3a75f);
+  --structure: light-dark(#245f99, #72a4d6);
+  --reference: light-dark(#286da8, #78a9d8);
+  --reference-muted: light-dark(#6b8198, #8299b0);
+  --technical: light-dark(#766b87, #aa9abc);
+  --technical-soft: light-dark(#f1eef4, #1d2233);
+  --callout-insight: light-dark(#806d96, #b29aca);
+  --success: light-dark(#397259, #75af91);
+  --warning: light-dark(#9b6429, #d29a50);
+  --danger: light-dark(#a64c45, #d77b73);
+  --danger-soft: light-dark(#f6e7e2, #342229);
 
   /* 舊 token 是相容層；視覺決策只在上面的 semantic palette 做。 */
   --rail: var(--surface-sidebar);
@@ -56,7 +57,7 @@
    * Markdown 的符號（# ** == > -）。
    * 它們是排版指令不是內容，壓到只剩「看得見但不搶眼」的程度。
    */
-  --syntax-mark: light-dark(#aaa79e, #6f7a84);
+  --syntax-mark: light-dark(#a7a39b, #647384);
 
   /*
    * 編輯器的四個語義色家族。結構色比互動用的 accent 再安靜一階；reference 與
@@ -65,7 +66,7 @@
   --syntax-structure: var(--structure);
 
   /* 墨藍。深色主題要提亮，否則沉在深底上看不見。 */
-  --accent: light-dark(#285a79, #8bb2ce);
+  --accent: light-dark(#214f7c, #86add0);
   --accent-soft: var(--surface-active);
 
   /*
@@ -76,7 +77,7 @@
   --gold-soft: var(--accent-gold-muted);
 
   /* 刪除這類破壞性操作，不跟一般操作同色 */
-  --insight: var(--success);
+  --insight: var(--callout-insight);
 
   /*
    * 螢光筆。四色對應讀法條時的分層：要件／例外／實務見解／自己的疑問。
@@ -87,10 +88,10 @@
    * 深色主題不是把淺色調暗 —— 螢光色在深底上要再降飽和、提一點亮度，
    * 否則會亮到蓋過文字本身。
    */
-  --hl-yellow: light-dark(#f2e4ae, #4b4224);
-  --hl-green: light-dark(#d8e6ce, #294235);
-  --hl-pink: light-dark(#efd6dc, #46303b);
-  --hl-blue: light-dark(#d7e4ed, #293d50);
+  --hl-yellow: light-dark(#f3e3ad, #493d21);
+  --hl-green: light-dark(#dce8d3, #263d31);
+  --hl-pink: light-dark(#efd9df, #422e38);
+  --hl-blue: light-dark(#dbe7f0, #263a4d);
 }
 
 :root.light {
@@ -108,17 +109,17 @@
  * 深色底上的雜訊比淺色底明顯，要壓低一點才不會看起來髒。
  */
 :root {
-  --grain: 0.04;
+  --grain: 0.018;
 }
 
 @media (prefers-color-scheme: dark) {
   :root:not(.light) {
-    --grain: 0.025;
+    --grain: 0.014;
   }
 }
 
 :root.dark {
-  --grain: 0.025;
+  --grain: 0.014;
 }
 
 @theme inline {
@@ -193,7 +194,7 @@
    * 陰影只有兩種用途：浮起來的選單，以及登入卡片。
    * 介面內的層次靠四層底色做，不靠陰影堆疊。
    */
-  --shadow-pop: 0 12px 32px light-dark(rgba(55, 53, 47, 0.14), rgba(0, 0, 0, 0.45));
+  --shadow-pop: 0 12px 32px light-dark(rgba(55, 53, 47, 0.12), rgba(0, 0, 0, 0.36));
   --shadow-card: 0 24px 70px light-dark(rgba(55, 53, 47, 0.1), rgba(0, 0, 0, 0.4));
 }
 
@@ -226,20 +227,6 @@ body {
 *::-webkit-scrollbar-thumb:hover {
   background: color-mix(in srgb, var(--text-secondary) 48%, transparent);
   background-clip: padding-box;
-}
-
-/*
- * 1024px 還是完整桌機，但四個固定欄位同時排開會讓正文失去可讀寬度。這個 breakpoint
- * 只把既有大綱改成暫時覆蓋層；元件、open state、active heading 與跳轉都沒有第二套。
- */
-@media (min-width: 1024px) and (max-width: 1100px) {
-  .outline-panel {
-    position: absolute;
-    inset-block: 0;
-    right: 0;
-    z-index: 30;
-    box-shadow: var(--shadow-pop);
-  }
 }
 
 /*
@@ -356,8 +343,8 @@ body::after {
   margin: 0 auto;
   color: var(--text-primary);
   font-family: var(--font-serif);
-  font-size: 16px;
-  line-height: 1.8;
+  font-size: 15px;
+  line-height: 1.75;
   letter-spacing: 0.006em;
 }
 
@@ -478,7 +465,7 @@ body::after {
 .markdown-body h2,
 .markdown-body h3,
 .markdown-body h4 {
-  margin: 2em 0 0.55em;
+  margin: 1.55em 0 0.45em;
   font-weight: 600;
   line-height: 1.4;
 }
@@ -487,13 +474,13 @@ body::after {
 .markdown-body h1 + h2,
 .markdown-body h2 + h3,
 .markdown-body h3 + h4 {
-  margin-top: 1.1em;
+  margin-top: 0.9em;
 }
 
 .markdown-body h1 {
   padding-bottom: 0.3em;
   border-bottom: 1px solid color-mix(in srgb, var(--heading-accent) 44%, var(--border-subtle));
-  color: var(--text-primary);
+  color: var(--heading-accent);
   font-size: 1.55em;
   letter-spacing: 0.01em;
 }
@@ -501,7 +488,7 @@ body::after {
 .markdown-body h2 {
   position: relative;
   padding-left: 0.7em;
-  color: color-mix(in srgb, var(--heading-accent) 46%, var(--text-primary));
+  color: var(--heading-accent);
   font-size: 1.28em;
 }
 
@@ -517,6 +504,7 @@ body::after {
 }
 
 .markdown-body h3 {
+  color: color-mix(in srgb, var(--heading-accent) 72%, var(--text-primary));
   font-family: var(--font-sans);
   font-size: 1.05em;
   font-weight: 700;
@@ -536,18 +524,18 @@ body::after {
  * 給多一點，它們本來就是獨立的東西。
  */
 .markdown-body p {
-  margin: 1.05em 0;
+  margin: 0.78em 0;
 }
 
 .markdown-body ul,
 .markdown-body ol {
-  margin: 1em 0;
+  margin: 0.72em 0;
 }
 
 .markdown-body blockquote,
 .markdown-body table,
 .markdown-body pre {
-  margin: 1.4em 0;
+  margin: 1.1em 0;
 }
 
 .markdown-body ul,
@@ -571,16 +559,21 @@ body::after {
 }
 
 .markdown-body li {
-  margin: 0.3em 0;
+  margin: 0.18em 0;
 }
 
 .markdown-body li > ul,
 .markdown-body li > ol {
-  margin: 0.3em 0;
+  margin: 0.2em 0;
 }
 
 .markdown-body li::marker {
-  color: var(--ink-muted);
+  color: var(--heading-accent);
+}
+
+.markdown-body ol > li::marker {
+  color: var(--gold);
+  font-variant-numeric: tabular-nums;
 }
 
 .markdown-body a {
@@ -641,10 +634,11 @@ body::after {
  */
 .markdown-body blockquote {
   padding: 0.6em 1em;
-  border-left: 3px solid color-mix(in srgb, var(--accent) 35%, transparent);
+  border-left: 2px solid color-mix(in srgb, var(--gold) 78%, transparent);
   border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
   background: color-mix(in srgb, var(--structure) 7%, transparent);
   color: var(--text-secondary);
+  font-style: italic;
 }
 
 .markdown-body blockquote > :first-child {

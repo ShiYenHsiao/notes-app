@@ -84,11 +84,11 @@ export function TagBar({
   }
 
   return (
-    <div className="flex flex-wrap items-center gap-1.5">
+    <div className="flex min-w-0 flex-1 flex-nowrap items-center gap-1 overflow-x-auto">
       {tags.map((tag) => (
         <span
           key={tag.id}
-          className="group/chip flex items-center gap-1 rounded-md border border-border-subtle bg-active/70 py-0.5 pr-1.5 pl-2 text-xs font-medium text-secondary transition-colors duration-150"
+          className="group/chip flex shrink-0 items-center gap-1 rounded-sm border border-border-subtle bg-active/60 py-px pr-1.5 pl-2 text-2xs font-medium text-secondary transition-colors duration-150"
         >
           {tag.name}
           <button
@@ -124,7 +124,7 @@ export function TagBar({
         placeholder={tags.length === 0 ? "加標籤…" : "＋"}
         disabled={pending}
         aria-label="新增標籤"
-        className="min-w-16 flex-1 bg-transparent text-xs outline-none placeholder:text-ink-muted disabled:opacity-50"
+        className="min-w-14 max-w-24 flex-1 bg-transparent text-2xs outline-none placeholder:text-ink-muted disabled:opacity-50"
       />
 
       <datalist id={listId}>

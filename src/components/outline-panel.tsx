@@ -27,12 +27,12 @@ export function OutlinePanel({
     <aside
       aria-label="大綱"
       aria-hidden={open ? undefined : true}
-      className={`outline-panel hidden shrink-0 flex-col overflow-hidden border-l border-border-subtle bg-list transition-[width,opacity] duration-200 ease-out lg:flex ${
-        open ? "w-[208px] opacity-100" : "pointer-events-none w-0 opacity-0"
+      className={`outline-panel hidden shrink-0 flex-col overflow-hidden border-l border-border-subtle bg-list transition-[width,opacity] duration-200 ease-out lg:absolute lg:inset-y-0 lg:right-0 lg:z-20 lg:flex lg:shadow-[var(--shadow-pop)] xl:static xl:z-auto xl:shadow-none ${
+        open ? "w-[196px] opacity-100" : "pointer-events-none w-0 opacity-0"
       }`}
     >
-      <div className="shrink-0 px-3 pt-3 pb-1.5">
-        <span className="eyebrow">大綱</span>
+      <div className="flex h-10 shrink-0 items-center border-b border-border-subtle px-3">
+        <span className="text-sm font-semibold text-secondary">大綱</span>
       </div>
 
       {items.length === 0 ? (
@@ -57,7 +57,7 @@ export function OutlinePanel({
                  * h1 用比較重的字重跟其他層拉開。
                  */
                 style={{ paddingLeft: `${(item.level - 1) * 12 + 10}px` }}
-                className={`relative flex w-full items-center rounded-md py-1.5 pr-2 text-left text-sm transition-colors duration-150 ${
+                className={`relative flex w-full items-center rounded-sm py-1.5 pr-2 text-left text-sm transition-colors duration-150 ${
                   active
                     ? "bg-transparent font-medium text-primary"
                     : item.level === 1

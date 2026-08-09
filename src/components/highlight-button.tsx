@@ -62,7 +62,7 @@ export function HighlightButton({ api }: { api: React.RefObject<EditorApi | null
           type="button"
           aria-label="螢光筆"
           onClick={() => apply(undefined)}
-          className="flex size-7 items-center justify-center rounded-md text-muted transition-colors duration-150 hover:bg-hover hover:text-primary"
+          className="flex size-6 items-center justify-center rounded-sm text-muted transition-colors duration-150 hover:bg-hover hover:text-primary"
         >
           <IconHighlight />
         </button>
@@ -74,14 +74,14 @@ export function HighlightButton({ api }: { api: React.RefObject<EditorApi | null
           aria-label="選螢光筆顏色"
           aria-expanded={open}
           onClick={() => setOpen((value) => !value)}
-          className="flex h-7 w-3.5 items-center justify-center rounded-md text-2xs text-muted transition-colors duration-150 hover:bg-hover hover:text-primary"
+          className="flex h-6 w-3.5 items-center justify-center rounded-sm text-2xs text-muted transition-colors duration-150 hover:bg-hover hover:text-primary"
         >
           ▾
         </button>
       </Tooltip>
 
       {open ? (
-        <div className="absolute top-8 left-0 z-20 w-44 rounded-md border border-border-default bg-elevated py-1 shadow-pop">
+        <div className="absolute top-7 left-0 z-20 w-44 rounded-md border border-border-default bg-elevated py-1 shadow-pop">
           {COLORS.map((color) => (
             <button
               key={color.label}
