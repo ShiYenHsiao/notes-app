@@ -40,8 +40,12 @@
 | `--ink` / `--ink-muted` | 文字。帶暖的深灰，不是純黑 |
 | `--line` | 分隔線。比底色落差更輕，只負責收邊 |
 | `--syntax-mark` | 編輯器裡 Markdown 符號（`#`、`**`、`==`、`>`）的暖灰 |
+| `--syntax-structure` | 編輯器的標題、清單、引用與中文法律條列 marker |
+| `--reference` / `--reference-muted` | 連結文字、URL 與外部參照 |
+| `--technical` / `--technical-soft` | Code、delimiter 與 Markdown mechanics |
 | `--accent` / `--accent-soft` | 墨藍與它的淡底 |
 | `--gold` / `--gold-soft` | 暖金 |
+| `--insight` | 「自我理解」備註框與 Editor marker |
 | `--danger` / `--danger-soft` | 破壞性操作 |
 | `--hl-yellow` / `-green` / `-pink` / `-blue` | 四色螢光筆，刻意降飽和 |
 
@@ -130,7 +134,8 @@
 - 右鍵與 hover 的 `⋯` 開**同一個選單、同一份項目**
 
 ### Workspace Header
-標題（15px 襯線）+ 標籤 chips + 操作。高頻的留檯面上（大綱、專注模式），
+標題（15px 襯線）+ 標籤 chips + 操作。三種檢視用一組 28px segmented control 顯示
+目前狀態；高頻的留檯面上（大綱、專注模式），
 低頻的收進 `⋯`（釘選、移至垃圾桶）。版本紀錄自帶面板所以保留獨立按鈕。
 
 ### Toolbar
@@ -146,7 +151,10 @@
 
 - 行號縮到 39px、對比壓到 45%
 - 游標所在行用 3.5% 的墨色（不要用墨藍，那在暖白裡是一條藍帶）
-- **Markdown 符號降階**到 `--syntax-mark`；標題與粗體只靠字重與字色分層，不上彩色
+- Markdown 只用四個低飽和語義家族：結構墨藍、知識暖金、引用藍、技術紫灰
+- Header／List／Quote marker 由 Lezer syntax tree 精準標示；清單正文維持正常墨色
+- 中文法律條列 marker 重用既有 parser，只裝飾可見行，不另寫一套輸入規則
+- 四色螢光筆只掃描可見行並排除 code context，不修改 Markdown source
 - 15px / 1.85 行高 —— 這裡打的是中文不是程式碼
 - 游標 2px 墨藍，不做動畫
 
@@ -184,6 +192,7 @@
 
 大綱在專注模式預設收起（兩種模式各記一份開合狀態），但隨時可以打開。
 存檔狀態在專注模式浮到右下角，12px 低對比，只有 error 才提高權重。
+標題旁以小型「專注」標記安靜提示目前狀態；三種檢視控制仍留在標題列。
 
 ---
 

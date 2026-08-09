@@ -251,9 +251,12 @@ CodeMirror 預設長得像 IDE，這裡把它調成「筆記編輯器」：
 
 - **行號縮窄、對比壓到 45%**：它是輔助資訊，不該跟正文搶視線
 - **游標所在行幾乎看不見**（3.5% 的墨色）。原本用墨藍 6%，在一整片暖白裡是一條藍帶，很吵
-- **Markdown 符號降階**（[`syntax`](src/components/markdown-editor.tsx) 這份 HighlightStyle）：
-  `#`、`**`、`==`、`>`、`-` 都退到 `--syntax-mark` 那個暖灰，標題與粗體只靠字重與字色分層，
-  **不上彩色** —— 使用者要讀的是後面那句話，不是語法糖
+- **四個低飽和語義色族**（[`syntax`](src/components/markdown-editor.tsx) 這份 HighlightStyle）：
+  結構墨藍、知識暖金、引用藍與技術紫灰。Header／List／Quote marker 由 Lezer syntax tree
+  精準標示，清單正文不再跟著 marker 一起變淡；中文法律條列直接重用既有 parser，只裝飾
+  可見行，不另寫一套輸入規則
+- **四色螢光筆在 Editor 也看得到底色**：只掃描可見行並用 syntax tree 排除 inline／fenced
+  code，不修改 Markdown source，也不參與輸入 transaction
 - **字級 15px、行高 1.85**：這裡打的是中文不是程式碼，14px 配 1.75 長時間看會累
 
 ### 預覽區的閱讀模式

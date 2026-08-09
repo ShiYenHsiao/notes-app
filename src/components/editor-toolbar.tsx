@@ -41,7 +41,11 @@ export function EditorToolbar({
   onOpenImagePicker: () => void;
 }) {
   return (
-    <div className="flex h-11 shrink-0 flex-wrap items-center gap-0.5 border-b border-line px-2.5">
+    <div
+      role="toolbar"
+      aria-label="Markdown 編輯工具"
+      className="flex h-11 shrink-0 flex-nowrap items-center gap-0.5 overflow-x-auto border-b border-line bg-paper/55 px-2.5"
+    >
       <Button label="復原" shortcut="⌘Z" onClick={() => api.current?.undo()}>
         <IconUndo />
       </Button>

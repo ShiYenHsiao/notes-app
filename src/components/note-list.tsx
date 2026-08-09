@@ -231,10 +231,10 @@ function NoteRow({
       <Link
         href={href}
         aria-current={active ? "page" : undefined}
-        className={`grid h-[68px] content-center gap-1.5 rounded-md px-3 transition-[background-color,box-shadow] duration-150 ${
+        className={`grid h-[68px] content-center gap-1.5 rounded-md px-3 transition-colors duration-150 ${
           active
-            ? "bg-surface shadow-[inset_2px_0_0_var(--accent)]"
-            : "hover:bg-surface/70 hover:shadow-sm"
+            ? "bg-accent-soft/55 shadow-[inset_2px_0_0_var(--accent)]"
+            : "hover:bg-surface/65"
         }`}
       >
         <div className="flex items-center gap-1.5">

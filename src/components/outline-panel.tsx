@@ -27,7 +27,7 @@ export function OutlinePanel({
     <aside
       aria-label="大綱"
       aria-hidden={open ? undefined : true}
-      className={`hidden shrink-0 flex-col overflow-hidden border-l border-line bg-rail/50 transition-[width,opacity] duration-200 ease-out lg:flex ${
+      className={`hidden shrink-0 flex-col overflow-hidden border-l border-line bg-list/65 transition-[width,opacity] duration-200 ease-out lg:flex ${
         open ? "w-[208px] opacity-100" : "pointer-events-none w-0 opacity-0"
       }`}
     >

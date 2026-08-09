@@ -4,7 +4,7 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 /*
- * 色票，沿用 NEXUM 法務工作台那套：深綠為主、金色點綴、紙色底。
+ * 色票，沿用 NEXUM 法務工作台那套：墨藍為主、金色點綴、紙色底。
  *
  * 每個顏色用 light-dark() 寫成一組，只有一個定義來源。原本淺色與深色各寫一份，
  * 改色時很容易只改到一邊 —— 已經發生過一次。
@@ -41,6 +41,16 @@
    */
   --syntax-mark: light-dark(#b9b2a2, #6f6a5f);
 
+  /*
+   * 編輯器的四個語義色家族。結構色比互動用的 accent 再安靜一階；reference 與
+   * technical 則刻意拉開色相，但都維持低飽和，避免 Markdown 變成彩虹語法。
+   */
+  --syntax-structure: light-dark(#526f8a, #8aafd0);
+  --reference: light-dark(#356d98, #79a9d0);
+  --reference-muted: light-dark(#6d8497, #8ea2b5);
+  --technical: light-dark(#756b82, #aa9db6);
+  --technical-soft: light-dark(#f1eef3, #2b272f);
+
   /* 墨藍。深色主題要提亮，否則沉在深底上看不見。 */
   --accent: light-dark(#2f5d8a, #7fb0dd);
   --accent-soft: light-dark(#e7eef6, #1e2b36);
@@ -55,6 +65,7 @@
   /* 刪除這類破壞性操作，不跟一般操作同色 */
   --danger: light-dark(#b3392c, #e08a7c);
   --danger-soft: light-dark(#f8e7e3, #33221f);
+  --insight: light-dark(#3f7d5e, #7fc4a0);
 
   /*
    * 螢光筆。四色對應讀法條時的分層：要件／例外／實務見解／自己的疑問。
@@ -113,6 +124,11 @@
   --color-rail: var(--rail);
   --color-gold: var(--gold);
   --color-gold-soft: var(--gold-soft);
+  --color-reference: var(--reference);
+  --color-reference-muted: var(--reference-muted);
+  --color-technical: var(--technical);
+  --color-technical-soft: var(--technical-soft);
+  --color-insight: var(--insight);
 
   /*
    * 介面用無襯線、內文用襯線 —— 這是整套設計最關鍵的一條。
@@ -250,6 +266,15 @@ body::after {
 }
 
 /*
+ * 極簡不等於拿掉焦點。統一的細墨藍外框讓 icon-only 工具在深淺色都能靠鍵盤辨識，
+ * 同時避開元件各自發明一種 focus ring。
+ */
+:where(a, button, input, select, textarea, [tabindex]:not([tabindex="-1"])):focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent) 72%, transparent);
+  outline-offset: 2px;
+}
+
+/*
  * 預覽區的排版。手寫而不裝 @tailwindcss/typography —— 要的樣式就這些，
  * 而且紙感配色本來就要逐項覆寫掉套件的預設值。
  */
@@ -269,6 +294,7 @@ body::after {
   font-family: var(--font-serif);
   font-size: 16px;
   line-height: 1.8;
+  letter-spacing: 0.006em;
 }
 
 /*
@@ -354,14 +380,14 @@ body::after {
   --callout-tone: var(--danger);
 }
 .markdown-body .callout-insight {
-  --callout-tone: light-dark(#3f7d5e, #7fc4a0);
+  --callout-tone: var(--insight);
 }
 
 .markdown-body .callout-note {
   --callout-tone: var(--accent);
 }
 .markdown-body .callout-tip {
-  --callout-tone: light-dark(#3f7d5e, #7fc4a0);
+  --callout-tone: var(--insight);
 }
 .markdown-body .callout-important {
   --callout-tone: light-dark(#7a52a8, #b596d8);
@@ -492,9 +518,17 @@ body::after {
 }
 
 .markdown-body a {
-  color: var(--accent);
+  color: var(--reference);
   text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--reference) 45%, transparent);
+  text-decoration-thickness: 1px;
   text-underline-offset: 0.2em;
+  transition: color 150ms ease-out, text-decoration-color 150ms ease-out;
+}
+
+.markdown-body a:hover {
+  color: color-mix(in srgb, var(--reference) 78%, var(--ink));
+  text-decoration-color: currentColor;
 }
 
 /*
@@ -526,9 +560,10 @@ body::after {
 /* 行內 code 跟區塊要長得不一樣：這個是小圓角膠囊，區塊是帶標籤的方框。 */
 .markdown-body code {
   padding: 0.12em 0.4em;
-  border: 1px solid color-mix(in srgb, var(--line) 70%, transparent);
-  border-radius: 3px;
-  background: color-mix(in srgb, var(--ink) 4%, transparent);
+  border: 1px solid color-mix(in srgb, var(--technical) 18%, var(--line));
+  border-radius: var(--radius-sm);
+  background: var(--technical-soft);
+  color: var(--technical);
   font-family: var(--font-mono);
   font-size: 0.85em;
 }
@@ -546,7 +581,7 @@ body::after {
   padding: 1.9em 1em 1em;
   border: 1px solid var(--line);
   border-radius: 3px;
-  background: light-dark(#f6f4ee, #191817);
+  background: color-mix(in srgb, var(--technical-soft) 58%, var(--surface));
   overflow-x: auto; /* 長程式碼自己捲，不要撐開整頁 */
 }
 
@@ -572,7 +607,7 @@ body::after {
   padding: 0;
   border-radius: 0;
   background: none;
-  color: var(--ink);
+  color: color-mix(in srgb, var(--technical) 42%, var(--ink));
   font-family: var(--font-mono);
   font-size: 13px;
   line-height: 1.65;
@@ -607,14 +642,14 @@ body::after {
 }
 
 .markdown-body th {
-  background: var(--list);
+  background: color-mix(in srgb, var(--accent-soft) 42%, var(--list));
   font-weight: 600;
 }
 
 .markdown-body img {
   max-width: 100%;
   height: auto;
-  border-radius: 0.375rem;
+  border-radius: var(--radius-md);
 }
 
 .markdown-body input[type="checkbox"] {

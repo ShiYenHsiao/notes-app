@@ -5,9 +5,9 @@ import { markdown } from "@codemirror/lang-markdown";
 import { redo, undo } from "@codemirror/commands";
 import { languages } from "@codemirror/language-data";
 import { autocompletion, startCompletion } from "@codemirror/autocomplete";
-import { HighlightStyle, indentUnit, syntaxHighlighting } from "@codemirror/language";
+import { HighlightStyle, indentUnit, syntaxHighlighting, syntaxTree } from "@codemirror/language";
 import { tags } from "@lezer/highlight";
-import { EditorState, Prec, RangeSetBuilder, type Text } from "@codemirror/state";
+import { EditorState, Prec, RangeSetBuilder, type Range, type Text } from "@codemirror/state";
 import { basicSetup, EditorView } from "codemirror";
 import {
   Decoration,
@@ -16,6 +16,7 @@ import {
   type DecorationSet,
   type ViewUpdate,
 } from "@codemirror/view";
+import type { SyntaxNode } from "@lezer/common";
 
 import {
   hardBreakSuffix,
@@ -127,6 +128,7 @@ export function MarkdownEditor({
           Prec.high(syntaxHighlighting(syntax)),
 
           indentGuides,
+          academicDecorations,
 
           /*
            * 斜線命令。
@@ -809,28 +811,219 @@ function columnsBefore(doc: Text, lineNumber: number): number | null {
   return null;
 }
 
+// ---------------------------------------------------------------- Academic IDE 語義裝飾
+
+/*
+ * HighlightStyle 能替 heading、list、quote 的內容上色，但 Lezer 會把整個清單項目都標成
+ * tags.list；直接把 tags.list 設成結構色，正文也會一起變淡。這層只依 syntax tree 找
+ * marker node，讓「結構」與「內容」各自保有正確權重，不另外 parse Markdown。
+ */
+const STRUCTURE_MARK_NODES = new Set(["HeaderMark", "ListMark", "QuoteMark"]);
+const TECHNICAL_MARK_NODES = new Set(["LinkMark", "EmphasisMark", "CodeMark"]);
+const CODE_CONTEXT_NODES = new Set(["InlineCode", "FencedCode", "CodeBlock", "CodeText"]);
+
+/*
+ * 四色螢光筆是 NEXUM 的自訂 inline 語法，Lezer Markdown 不認得它。只掃描目前可見的行，
+ * 而且先用 syntax tree 排除 code context；不碰文件內容、不影響 IME／selection／undo，
+ * 長文件也不會因每次輸入重掃全文。
+ */
+const EDITOR_HIGHLIGHT_PATTERN = /==([^=\n]+)==(?:\{([gpb])\})?/g;
+const CALLOUT_MARK_PATTERN = /^(\s*>\s*)\[!(KEY|PRACTICE|PITFALL|INSIGHT)\]/;
+
+const academicDecorations = ViewPlugin.fromClass(
+  class {
+    decorations: DecorationSet;
+
+    constructor(view: EditorView) {
+      this.decorations = buildAcademicDecorations(view);
+    }
+
+    update(update: ViewUpdate) {
+      if (update.docChanged || update.viewportChanged) {
+        this.decorations = buildAcademicDecorations(update.view);
+      }
+    }
+  },
+  { decorations: (plugin) => plugin.decorations },
+);
+
+function buildAcademicDecorations(view: EditorView): DecorationSet {
+  const ranges: Range<Decoration>[] = [];
+  const tree = syntaxTree(view.state);
+  const seenNodes = new Set<string>();
+
+  for (const { from, to } of view.visibleRanges) {
+    tree.iterate({
+      from,
+      to,
+      enter(node) {
+        const key = `${node.name}:${node.from}:${node.to}`;
+        if (seenNodes.has(key) || node.from === node.to) {
+          return;
+        }
+        seenNodes.add(key);
+
+        if (STRUCTURE_MARK_NODES.has(node.name)) {
+          ranges.push(
+            Decoration.mark({ class: "cm-structureMark" }).range(node.from, node.to),
+          );
+        } else if (TECHNICAL_MARK_NODES.has(node.name)) {
+          ranges.push(
+            Decoration.mark({ class: "cm-technicalMark" }).range(node.from, node.to),
+          );
+        }
+      },
+    });
+  }
+
+  const seenLines = new Set<number>();
+  for (const { from, to } of view.visibleRanges) {
+    const first = view.state.doc.lineAt(from).number;
+    const last = view.state.doc.lineAt(to).number;
+
+    for (let number = first; number <= last; number += 1) {
+      if (seenLines.has(number)) {
+        continue;
+      }
+      seenLines.add(number);
+
+      const line = view.state.doc.line(number);
+      decorateChineseListMarker(line.from, line.text, ranges);
+      decorateEditorHighlights(line.from, line.text, tree, ranges);
+      decorateCalloutMarker(line.from, line.text, ranges);
+    }
+  }
+
+  return Decoration.set(ranges, true);
+}
+
+function decorateChineseListMarker(
+  lineFrom: number,
+  text: string,
+  ranges: Range<Decoration>[],
+) {
+  const marker = parseChineseListMarker(text);
+  if (!marker) {
+    return;
+  }
+
+  const markerLength =
+    marker.kind === "dun" ? marker.numeral.length + 1 : marker.numeral.length + 2;
+  const from = lineFrom + marker.indent.length;
+  ranges.push(Decoration.mark({ class: "cm-legalListMark" }).range(from, from + markerLength));
+}
+
+function decorateEditorHighlights(
+  lineFrom: number,
+  text: string,
+  tree: ReturnType<typeof syntaxTree>,
+  ranges: Range<Decoration>[],
+) {
+  EDITOR_HIGHLIGHT_PATTERN.lastIndex = 0;
+  let match: RegExpExecArray | null;
+
+  while ((match = EDITOR_HIGHLIGHT_PATTERN.exec(text)) !== null) {
+    const openFrom = lineFrom + match.index;
+    const contentFrom = openFrom + 2;
+    const contentTo = contentFrom + match[1].length;
+
+    if (isCodeContext(tree.resolveInner(contentFrom, 1))) {
+      continue;
+    }
+
+    const tone = match[2] === "g" ? "green" : match[2] === "p" ? "pink" : match[2] === "b" ? "blue" : "yellow";
+    ranges.push(
+      Decoration.mark({ class: "cm-highlightDelimiter" }).range(openFrom, contentFrom),
+      Decoration.mark({ class: `cm-highlightContent cm-highlightContent-${tone}` }).range(
+        contentFrom,
+        contentTo,
+      ),
+      Decoration.mark({ class: "cm-highlightDelimiter" }).range(contentTo, contentTo + 2),
+    );
+
+    const suffixFrom = contentTo + 2;
+    const suffixTo = openFrom + match[0].length;
+    if (suffixTo > suffixFrom) {
+      ranges.push(
+        Decoration.mark({ class: "cm-technicalMark" }).range(suffixFrom, suffixTo),
+      );
+    }
+  }
+}
+
+function decorateCalloutMarker(
+  lineFrom: number,
+  text: string,
+  ranges: Range<Decoration>[],
+) {
+  const match = CALLOUT_MARK_PATTERN.exec(text);
+  if (!match) {
+    return;
+  }
+
+  const from = lineFrom + match[1].length;
+  const tag = match[2].toLowerCase();
+  ranges.push(
+    Decoration.mark({ class: `cm-calloutMark cm-calloutMark-${tag}` }).range(
+      from,
+      lineFrom + match[0].length,
+    ),
+  );
+}
+
+function isCodeContext(node: SyntaxNode): boolean {
+  for (let current: SyntaxNode | null = node; current; current = current.parent) {
+    if (CODE_CONTEXT_NODES.has(current.name)) {
+      return true;
+    }
+  }
+  return false;
+}
+
 /**
  * 語法上色。
  *
- * 這是「編輯器看起來像 NEXUM 而不是像 IDE」最關鍵的一段：**把 Markdown 的符號
- * 壓下去，把內容留在前面**。`#`、`**`、`==`、`>`、`-` 這些是排版指令而不是內容，
- * 使用者要讀的是後面那句話。
+ * Academic IDE 只用四個低飽和色族：結構墨藍、知識暖金、引用藍與技術紫灰。
+ * marker 的精準範圍交給上面的 syntax-tree decoration；這裡負責內容本身的階層。
  *
  * 顏色全部走主題變數，深淺色自動跟著換。標題與粗體只靠字重與字色分層，
  * 不上彩色 —— 這裡是拿來寫法律筆記的，不是拿來看語法糖的。
  */
 const syntax = HighlightStyle.define([
-  // 所有的標記符號：淡到剛好還看得見
-  { tag: tags.processingInstruction, color: "var(--syntax-mark)" },
-  { tag: tags.heading, color: "var(--ink)", fontWeight: "600" },
-  { tag: tags.strong, color: "var(--ink)", fontWeight: "600" },
-  { tag: tags.emphasis, color: "var(--ink)", fontStyle: "italic" },
-  { tag: tags.link, color: "var(--accent)" },
-  { tag: tags.url, color: "color-mix(in srgb, var(--accent) 65%, var(--ink-muted))" },
-  { tag: tags.quote, color: "var(--ink-muted)" },
-  { tag: tags.monospace, color: "var(--ink)" },
-  { tag: tags.list, color: "var(--syntax-mark)" },
+  { tag: tags.heading1, color: "var(--accent)", fontWeight: "700" },
+  {
+    tag: tags.heading2,
+    color: "color-mix(in srgb, var(--accent) 88%, var(--ink))",
+    fontWeight: "650",
+  },
+  {
+    tag: tags.heading3,
+    color: "color-mix(in srgb, var(--accent) 72%, var(--ink))",
+    fontWeight: "600",
+  },
+  {
+    tag: [tags.heading4, tags.heading5, tags.heading6],
+    color: "color-mix(in srgb, var(--accent) 54%, var(--ink))",
+    fontWeight: "600",
+  },
+  { tag: tags.strong, color: "var(--ink)", fontWeight: "650" },
+  { tag: tags.emphasis, color: "var(--technical)", fontStyle: "italic" },
+  { tag: tags.link, color: "var(--reference)" },
+  { tag: tags.url, color: "var(--reference-muted)" },
+  {
+    tag: tags.quote,
+    color: "color-mix(in srgb, var(--ink) 74%, var(--ink-muted))",
+  },
+  {
+    tag: tags.monospace,
+    color: "var(--technical)",
+    backgroundColor: "var(--technical-soft)",
+  },
+  // tags.list 涵蓋整個項目；正文必須維持正常，marker 由 decoration 單獨上色。
+  { tag: tags.list, color: "var(--ink)" },
   { tag: tags.strikethrough, color: "var(--ink-muted)", textDecoration: "line-through" },
+  // 括號、星號與反引號等一般 Markdown mechanics。
+  { tag: tags.processingInstruction, color: "var(--syntax-mark)" },
 ]);
 
 /** 讓 CodeMirror 用主題的 CSS 變數，深淺色才會跟著換。 */
@@ -858,6 +1051,7 @@ const theme = EditorView.theme({
     padding: "1.75rem 0",
     // 中文行距要比程式碼寬一點才好讀
     lineHeight: "1.85",
+    letterSpacing: "0.008em",
   },
   ".cm-line": {
     padding: "0 1.25rem",
@@ -869,7 +1063,7 @@ const theme = EditorView.theme({
    */
   ".cm-line.cm-indentGuides": {
     backgroundImage:
-      "repeating-linear-gradient(to right, var(--line) 0 1px, transparent 1px var(--guide-step))",
+      "repeating-linear-gradient(to right, color-mix(in srgb, var(--line) 72%, transparent) 0 1px, transparent 1px var(--guide-step))",
     backgroundSize: "calc(var(--guides) * var(--guide-step)) 100%",
     backgroundRepeat: "no-repeat",
     backgroundOrigin: "content-box",
@@ -907,7 +1101,51 @@ const theme = EditorView.theme({
     borderLeftWidth: "2px",
   },
   "&.cm-focused .cm-selectionBackground, .cm-selectionBackground, ::selection": {
-    backgroundColor: "var(--accent-soft)",
+    backgroundColor: "color-mix(in srgb, var(--accent-soft) 88%, transparent)",
+  },
+
+  // Markdown 結構 marker 與中文法律條列共用同一個 restrained navy。
+  ".cm-structureMark, .cm-legalListMark": {
+    color: "var(--syntax-structure)",
+    fontWeight: "600",
+  },
+  ".cm-technicalMark": {
+    color: "var(--technical)",
+  },
+  ".cm-highlightDelimiter": {
+    color: "color-mix(in srgb, var(--gold) 72%, var(--syntax-mark))",
+  },
+  ".cm-highlightContent": {
+    borderRadius: "2px",
+    boxShadow: "0 0 0 1.5px var(--editor-highlight)",
+    backgroundColor: "var(--editor-highlight)",
+  },
+  ".cm-highlightContent-yellow": {
+    "--editor-highlight": "var(--hl-yellow)",
+  },
+  ".cm-highlightContent-green": {
+    "--editor-highlight": "var(--hl-green)",
+  },
+  ".cm-highlightContent-pink": {
+    "--editor-highlight": "var(--hl-pink)",
+  },
+  ".cm-highlightContent-blue": {
+    "--editor-highlight": "var(--hl-blue)",
+  },
+  ".cm-calloutMark": {
+    fontWeight: "650",
+  },
+  ".cm-calloutMark-key": {
+    color: "var(--gold)",
+  },
+  ".cm-calloutMark-practice": {
+    color: "var(--syntax-structure)",
+  },
+  ".cm-calloutMark-pitfall": {
+    color: "var(--danger)",
+  },
+  ".cm-calloutMark-insight": {
+    color: "var(--insight)",
   },
 
   // 斜線命令的選單。預設是系統灰底，跟整體不搭。
@@ -915,7 +1153,7 @@ const theme = EditorView.theme({
     border: "1px solid var(--line)",
     borderRadius: "3px",
     backgroundColor: "var(--surface)",
-    boxShadow: "0 12px 32px rgba(55, 53, 47, 0.14)",
+    boxShadow: "var(--shadow-pop)",
   },
   ".cm-tooltip-autocomplete > ul": {
     fontFamily: "var(--font-sans)",

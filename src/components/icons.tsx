@@ -223,6 +223,33 @@ export function IconFocus(props: IconProps) {
   );
 }
 
+export function IconEditorView(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <rect x="3.5" y="4" width="17" height="16" rx="1.5" />
+      <path d="M7.5 8h7M7.5 12h9M7.5 16h6" />
+    </Icon>
+  );
+}
+
+export function IconSplitView(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <rect x="3.5" y="4" width="17" height="16" rx="1.5" />
+      <path d="M12 4v16M7 8h2M15 8h2M7 12h2M15 12h2" />
+    </Icon>
+  );
+}
+
+export function IconPreviewView(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <rect x="3.5" y="4" width="17" height="16" rx="1.5" />
+      <path d="M7.5 8h9M7.5 12h7M7.5 16h8" />
+    </Icon>
+  );
+}
+
 export function IconMore(props: IconProps) {
   return (
     <Icon {...props}>

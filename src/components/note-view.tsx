@@ -16,7 +16,14 @@ import { useReportSaveStatus } from "@/lib/workspace-status";
 
 import { ContextMenu, useContextMenu } from "./context-menu";
 import { EditorToolbar } from "./editor-toolbar";
-import { IconFocus, IconMore, IconOutline } from "./icons";
+import {
+  IconEditorView,
+  IconFocus,
+  IconMore,
+  IconOutline,
+  IconPreviewView,
+  IconSplitView,
+} from "./icons";
 import type { EditorApi } from "./markdown-editor";
 import { MarkdownPreview } from "./markdown-preview";
 import { OutlinePanel } from "./outline-panel";
@@ -143,13 +150,13 @@ export function NoteView({
   }
 
   return (
-    <div className="relative flex h-full flex-col">
+    <div className="relative flex h-full flex-col" data-focus-mode={focused || undefined}>
       {/*
         筆記的 metadata 區：標題與標籤在內容上方，用一條分隔線跟內容隔開。
         標籤是**資料庫欄位而不是內文的一部分**，所以它屬於這裡，不屬於編輯區裡面。
       */}
       <header
-        className={`shrink-0 border-b border-line transition-[padding] duration-200 ease-out ${
+        className={`shrink-0 border-b border-line bg-paper/80 transition-[padding] duration-200 ease-out ${
           focused ? "px-6 pt-2.5 pb-2" : "px-5 pt-3 pb-2.5"
         }`}
       >
@@ -158,14 +165,24 @@ export function NoteView({
             ← 返回
           </Link>
 
-          <h1
-            className={`min-w-0 flex-1 truncate text-lg font-semibold ${
-              title ? "" : "text-ink-muted"
-            }`}
-            style={{ fontFamily: "var(--font-serif)" }}
-          >
-            {title ?? "無標題"}
-          </h1>
+          <div className="flex min-w-0 flex-1 items-center gap-2.5">
+            <h1
+              className={`min-w-0 truncate text-lg font-semibold ${
+                title ? "" : "text-ink-muted"
+              }`}
+              style={{ fontFamily: "var(--font-serif)" }}
+            >
+              {title ?? "無標題"}
+            </h1>
+
+            {focused ? (
+              <span className="shrink-0 rounded-sm bg-accent-soft px-1.5 py-0.5 text-2xs font-semibold tracking-[0.08em] text-accent">
+                專注
+              </span>
+            ) : null}
+          </div>
+
+          {isDesktop ? <ViewModeControl value={viewMode} onChange={setViewMode} /> : null}
 
           {/*
             高頻的留在檯面上（大綱、專注模式），低頻的收進 ⋯：
@@ -259,7 +276,7 @@ export function NoteView({
           <div
             className={`min-w-0 bg-surface transition-[flex-basis] duration-200 ease-out ${
               showPreview
-                ? "flex-1 basis-[45%] border-r border-line"
+                ? "flex-1 basis-[45%] border-r border-line/80"
                 : // 置中的是整個編輯器（含行號）而不是只有文字 —— 只置中文字的話，
                   // 行號會貼在視窗最左邊，跟它標示的那一行隔著半個螢幕
                   "mx-auto w-full max-w-[60rem]"
@@ -283,7 +300,7 @@ export function NoteView({
           /* 只有預覽時給它更多上下呼吸空間，那是真正的閱讀模式 */
           <div
             ref={previewRef}
-            className={`min-w-0 overflow-y-auto bg-paper px-8 transition-[flex-basis,padding] duration-200 ease-out ${
+            className={`min-w-0 overflow-y-auto bg-paper px-6 transition-[flex-basis,padding] duration-200 ease-out lg:px-8 ${
               showEditor ? "flex-1 basis-[55%] py-8" : focused ? "w-full py-16" : "w-full py-10"
             }`}
           >
@@ -331,6 +348,58 @@ export function NoteView({
           <SaveIndicator status={save.status} />
         </footer>
       )}
+    </div>
+  );
+}
+
+/**
+ * 三種既有檢視原本只有快捷鍵，功能存在但畫面上看不出目前狀態。
+ * 做成一組 28px 的安靜 segmented control，不增加新的 workspace state。
+ */
+function ViewModeControl({
+  value,
+  onChange,
+}: {
+  value: ViewMode;
+  onChange: (mode: ViewMode) => void;
+}) {
+  const modes: {
+    value: ViewMode;
+    label: string;
+    shortcut: string;
+    icon: React.ReactNode;
+  }[] = [
+    { value: "editor", label: "只看編輯", shortcut: "⌘1", icon: <IconEditorView /> },
+    { value: "split", label: "左右分割", shortcut: "⌘2", icon: <IconSplitView /> },
+    { value: "preview", label: "只看預覽", shortcut: "⌘3", icon: <IconPreviewView /> },
+  ];
+
+  return (
+    <div
+      role="group"
+      aria-label="檢視模式"
+      className="hidden shrink-0 items-center gap-0.5 rounded-md bg-list/65 p-0.5 ring-1 ring-line/70 ring-inset md:flex"
+    >
+      {modes.map((mode) => {
+        const active = value === mode.value;
+        return (
+          <Tooltip key={mode.value} label={mode.label} shortcut={mode.shortcut}>
+            <button
+              type="button"
+              aria-label={mode.label}
+              aria-pressed={active}
+              onClick={() => onChange(mode.value)}
+              className={`flex size-7 items-center justify-center rounded-sm transition-colors duration-150 ${
+                active
+                  ? "bg-surface text-accent shadow-[inset_0_0_0_1px_var(--line)]"
+                  : "text-ink-muted hover:bg-accent-soft/60 hover:text-accent"
+              }`}
+            >
+              {mode.icon}
+            </button>
+          </Tooltip>
+        );
+      })}
     </div>
   );
 }
