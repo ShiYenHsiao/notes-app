@@ -112,7 +112,7 @@ export function QuickOpen({
 
   return (
     <div
-      className="fixed inset-0 z-[70] grid items-start justify-items-center bg-ink/15 px-4 pt-[14vh] backdrop-blur-[1px]"
+      className="fixed inset-0 z-[70] grid items-start justify-items-center bg-background/65 px-4 pt-[13vh] backdrop-blur-[2px]"
       role="presentation"
       onMouseDown={(event) => {
         if (event.currentTarget === event.target) {
@@ -124,10 +124,10 @@ export function QuickOpen({
         role="dialog"
         aria-modal="true"
         aria-label="快速開啟筆記"
-        className="w-full max-w-xl overflow-hidden rounded-sm border border-line bg-surface shadow-[var(--shadow-pop)]"
+        className="w-full max-w-xl overflow-hidden rounded-lg border border-border-default bg-elevated shadow-[var(--shadow-pop)]"
       >
-        <div className="flex items-center gap-3 border-b border-line px-4">
-          <span aria-hidden className="text-ink-muted">⌕</span>
+        <div className="flex items-center gap-3 border-b border-border-subtle px-4">
+          <span aria-hidden className="text-gold">⌕</span>
           <input
             ref={input}
             value={query}
@@ -154,7 +154,7 @@ export function QuickOpen({
             placeholder="搜尋筆記標題"
             aria-label="搜尋筆記標題"
             aria-activedescendant={visible[active] ? `quick-open-${visible[active].id}` : undefined}
-            className="h-12 min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-ink-muted"
+            className="h-13 min-w-0 flex-1 bg-transparent text-base outline-none placeholder:text-muted"
           />
           <kbd className="text-2xs text-ink-muted">ESC</kbd>
         </div>
@@ -179,8 +179,10 @@ export function QuickOpen({
                   type="button"
                   onMouseEnter={() => setActive(index)}
                   onClick={() => select(candidate)}
-                  className={`flex w-full items-center gap-3 rounded-sm px-3 py-2 text-left text-sm ${
-                    index === active ? "bg-accent-soft text-accent" : "text-ink hover:bg-list"
+                  className={`flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-left text-sm transition-colors duration-150 ${
+                    index === active
+                      ? "bg-active text-primary shadow-[inset_2px_0_0_var(--accent-gold)]"
+                      : "text-secondary hover:bg-hover hover:text-primary"
                   }`}
                 >
                   <span className="min-w-0 flex-1 truncate">{candidate.title}</span>

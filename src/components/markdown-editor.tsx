@@ -1255,11 +1255,11 @@ const theme = EditorView.theme({
     minWidth: "auto",
   },
   /*
-   * 游標所在行。原本用墨藍 6%，在一整片暖白裡是一條藍帶，很吵。
-   * 改成幾乎看不見的暖灰 —— 它只要回答「我在哪一行」，不需要被看見。
+   * 游標所在行只回答「我在哪一行」。structure tint 同時適配雙主題，
+   * 但比例壓到 5%，不讓長文件形成一條搶眼色帶。
    */
   ".cm-activeLine": {
-    backgroundColor: "color-mix(in srgb, var(--ink) 3.5%, transparent)",
+    backgroundColor: "color-mix(in srgb, var(--structure) 5%, transparent)",
   },
   ".cm-activeLineGutter": {
     backgroundColor: "transparent",
@@ -1328,12 +1328,17 @@ const theme = EditorView.theme({
     textDecorationStyle: "dashed",
     textDecorationColor: "color-mix(in srgb, var(--ink-muted) 55%, transparent)",
   },
+  ".cm-wikiLink-ambiguous": {
+    color: "var(--warning)",
+    textDecorationStyle: "dotted",
+    textDecorationColor: "color-mix(in srgb, var(--warning) 58%, transparent)",
+  },
 
   // 斜線命令的選單。預設是系統灰底，跟整體不搭。
   ".cm-tooltip.cm-tooltip-autocomplete": {
-    border: "1px solid var(--line)",
-    borderRadius: "3px",
-    backgroundColor: "var(--surface)",
+    border: "1px solid var(--border-default)",
+    borderRadius: "6px",
+    backgroundColor: "var(--surface-elevated)",
     boxShadow: "var(--shadow-pop)",
   },
   ".cm-tooltip-autocomplete > ul": {
@@ -1349,8 +1354,9 @@ const theme = EditorView.theme({
     color: "var(--ink)",
   },
   ".cm-tooltip-autocomplete > ul > li[aria-selected]": {
-    backgroundColor: "var(--accent-soft)",
-    color: "var(--accent)",
+    backgroundColor: "var(--surface-active)",
+    color: "var(--text-primary)",
+    boxShadow: "inset 2px 0 0 var(--accent-gold)",
   },
   ".cm-completionDetail": {
     marginLeft: "auto",

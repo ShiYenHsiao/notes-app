@@ -53,15 +53,15 @@ export function VersionHistory({ noteId }: { noteId: string }) {
         title="版本紀錄"
         aria-label="版本紀錄"
         aria-expanded={open}
-        className={`flex size-7 items-center justify-center rounded-md transition-colors hover:bg-accent-soft ${
-          open ? "bg-accent-soft text-accent" : "text-ink-muted hover:text-accent"
+        className={`flex size-7 items-center justify-center rounded-md transition-colors hover:bg-hover ${
+          open ? "bg-active text-primary" : "text-muted hover:text-primary"
         }`}
       >
         <IconHistory />
       </button>
 
       {open ? (
-        <div className="absolute right-0 z-10 mt-2 w-72 rounded-sm border border-line bg-surface shadow-[0_22px_60px_rgba(33,60,55,0.2)]">
+        <div className="absolute right-0 z-10 mt-2 w-72 rounded-lg border border-border-default bg-elevated shadow-pop">
           <div className="border-b border-line px-3 py-2">
             <span className="eyebrow">VERSIONS</span>
             <p className="mt-0.5 text-xs text-ink-muted">每 10 分鐘留一份，最多 30 份</p>

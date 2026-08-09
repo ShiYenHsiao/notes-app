@@ -4,68 +4,79 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 /*
- * 色票，沿用 NEXUM 法務工作台那套：墨藍為主、金色點綴、紙色底。
+ * Visual Identity v4：Dark 是 Academic IDE，Light 是 Digital Legal Textbook。
  *
- * 每個顏色用 light-dark() 寫成一組，只有一個定義來源。原本淺色與深色各寫一份，
- * 改色時很容易只改到一邊 —— 已經發生過一次。
- *
- * 主題切換靠 color-scheme：不加 class 時是 `light dark`，由系統決定；
- * 加上 .light / .dark 就鎖定其中一邊，light-dark() 會跟著走。
+ * 語義 token 先描述「這個顏色負責什麼」，舊元件使用的短名稱再映射回來。這讓既有
+ * presentation class 不必一次全換掉，也避免 component 自己決定深淺色 hex。
  */
 :root {
   color-scheme: light dark;
 
-  /*
-   * 四層由深到淺：側邊欄 → 筆記列表 → 頁面 → 編輯區。
-   * 暖白而不是純白 —— 純白在長時間閱讀時偏刺眼，但只帶一點點黃，
-   * 不能黃到讓螢光筆的顏色髒掉。
-   */
-  --rail: light-dark(#f1eee7, #141312);
-  --list: light-dark(#f7f5ef, #1a1917);
-  --paper: light-dark(#fdfcf9, #1e1c1a);
-  --surface: light-dark(#ffffff, #252320);
+  --background: light-dark(#e8e4da, #0a1017);
+  --surface-sidebar: light-dark(#ebe7dd, #0d151e);
+  --surface-list: light-dark(#f2efe7, #111a25);
+  --surface-workspace: light-dark(#faf8f2, #151f2b);
+  --surface-editor: light-dark(#fdfbf6, #192431);
+  --surface-elevated: light-dark(#fffdf8, #202d3b);
+  --surface-hover: light-dark(#e9ece9, #1d2a38);
+  --surface-active: light-dark(#dfe7e8, #25374a);
 
-  /* 文字是帶暖的深灰，不是純黑。純黑配暖底會有一種塑膠感。 */
-  --ink: light-dark(#37352f, #e8e4db);
-  --ink-muted: light-dark(#7d7768, #9a9384);
+  --border-subtle: light-dark(#dfdbd1, #253240);
+  --border-default: light-dark(#cec9be, #354657);
 
-  /*
-   * 分隔線。四層底色已經把區域分開了，線只負責「收邊」，所以要比底色的落差更輕 ——
-   * 每一區都畫一條深線的話，畫面會被切成一格一格的表格。
-   */
-  --line: light-dark(#eae6dc, #2e2c28);
+  --text-primary: light-dark(#27343e, #e5eaed);
+  --text-secondary: light-dark(#5d666b, #b8c1c8);
+  --text-muted: light-dark(#7d8382, #8e9aa5);
+  --text-faint: light-dark(#a2a39d, #65727e);
+
+  --accent-gold: light-dark(#9b7939, #c9aa6c);
+  --accent-gold-muted: light-dark(#eee4ce, #30291d);
+  --accent-fill: light-dark(#285a79, #416d8b);
+  --heading-accent: light-dark(#285a79, #c9aa6c);
+  --structure: light-dark(#3e6682, #89abc4);
+  --reference: light-dark(#2d6f9d, #79add1);
+  --reference-muted: light-dark(#6a8496, #91a8ba);
+  --technical: light-dark(#71677d, #ad9fba);
+  --technical-soft: light-dark(#f0edf2, #292632);
+  --success: light-dark(#397259, #74b493);
+  --warning: light-dark(#9f6b2f, #d4a35d);
+  --danger: light-dark(#aa453d, #dc8177);
+  --danger-soft: light-dark(#f6e5e0, #352225);
+
+  /* 舊 token 是相容層；視覺決策只在上面的 semantic palette 做。 */
+  --rail: var(--surface-sidebar);
+  --list: var(--surface-list);
+  --paper: var(--surface-workspace);
+  --surface: var(--surface-editor);
+  --ink: var(--text-primary);
+  --ink-muted: var(--text-muted);
+  --line: var(--border-subtle);
 
   /*
    * Markdown 的符號（# ** == > -）。
    * 它們是排版指令不是內容，壓到只剩「看得見但不搶眼」的程度。
    */
-  --syntax-mark: light-dark(#b9b2a2, #6f6a5f);
+  --syntax-mark: light-dark(#aaa79e, #6f7a84);
 
   /*
    * 編輯器的四個語義色家族。結構色比互動用的 accent 再安靜一階；reference 與
    * technical 則刻意拉開色相，但都維持低飽和，避免 Markdown 變成彩虹語法。
    */
-  --syntax-structure: light-dark(#526f8a, #8aafd0);
-  --reference: light-dark(#356d98, #79a9d0);
-  --reference-muted: light-dark(#6d8497, #8ea2b5);
-  --technical: light-dark(#756b82, #aa9db6);
-  --technical-soft: light-dark(#f1eef3, #2b272f);
+  --syntax-structure: var(--structure);
 
   /* 墨藍。深色主題要提亮，否則沉在深底上看不見。 */
-  --accent: light-dark(#2f5d8a, #7fb0dd);
-  --accent-soft: light-dark(#e7eef6, #1e2b36);
+  --accent: light-dark(#285a79, #8bb2ce);
+  --accent-soft: var(--surface-active);
 
   /*
    * 低飽和金。品牌的第二色，只用在細節：方案卡的邊、品牌標記。
    * 面積一大就會變成廉價的「金色會員」感，所以刻意只當點綴。
    */
-  --gold: light-dark(#a98a4b, #d5b982);
-  --gold-soft: light-dark(#f3ecdd, #2c2517);
+  --gold: var(--accent-gold);
+  --gold-soft: var(--accent-gold-muted);
 
   /* 刪除這類破壞性操作，不跟一般操作同色 */
-  --danger: light-dark(#b3392c, #e08a7c);
-  --danger-soft: light-dark(#f8e7e3, #33221f);
-  --insight: light-dark(#3f7d5e, #7fc4a0);
+  --insight: var(--success);
 
   /*
    * 螢光筆。四色對應讀法條時的分層：要件／例外／實務見解／自己的疑問。
@@ -76,10 +87,10 @@
    * 深色主題不是把淺色調暗 —— 螢光色在深底上要再降飽和、提一點亮度，
    * 否則會亮到蓋過文字本身。
    */
-  --hl-yellow: light-dark(#f7ecbe, #554c22);
-  --hl-green: light-dark(#d8e8ce, #2c4530);
-  --hl-pink: light-dark(#f4dae1, #4b2c38);
-  --hl-blue: light-dark(#d9e6f2, #263c53);
+  --hl-yellow: light-dark(#f2e4ae, #4b4224);
+  --hl-green: light-dark(#d8e6ce, #294235);
+  --hl-pink: light-dark(#efd6dc, #46303b);
+  --hl-blue: light-dark(#d7e4ed, #293d50);
 }
 
 :root.light {
@@ -111,6 +122,21 @@
 }
 
 @theme inline {
+  --color-background: var(--background);
+  --color-sidebar: var(--surface-sidebar);
+  --color-workspace: var(--surface-workspace);
+  --color-elevated: var(--surface-elevated);
+  --color-hover: var(--surface-hover);
+  --color-active: var(--surface-active);
+  --color-action: var(--accent-fill);
+  --color-border-subtle: var(--border-subtle);
+  --color-border-default: var(--border-default);
+  --color-primary: var(--text-primary);
+  --color-secondary: var(--text-secondary);
+  --color-muted: var(--text-muted);
+  --color-faint: var(--text-faint);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
   --color-paper: var(--paper);
   --color-surface: var(--surface);
   --color-list: var(--list);
@@ -172,11 +198,48 @@
 }
 
 body {
-  background: var(--paper);
+  background: var(--background);
   color: var(--ink);
   font-family: var(--font-sans);
   font-size: var(--text-base);
   line-height: 1.7;
+}
+
+/* 細而低對比的 scrollbar，保留瀏覽器原生行為與可操作範圍。 */
+* {
+  scrollbar-color: color-mix(in srgb, var(--text-muted) 34%, transparent) transparent;
+  scrollbar-width: thin;
+}
+
+*::-webkit-scrollbar {
+  width: 9px;
+  height: 9px;
+}
+
+*::-webkit-scrollbar-thumb {
+  border: 3px solid transparent;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--text-muted) 34%, transparent);
+  background-clip: padding-box;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--text-secondary) 48%, transparent);
+  background-clip: padding-box;
+}
+
+/*
+ * 1024px 還是完整桌機，但四個固定欄位同時排開會讓正文失去可讀寬度。這個 breakpoint
+ * 只把既有大綱改成暫時覆蓋層；元件、open state、active heading 與跳轉都沒有第二套。
+ */
+@media (min-width: 1024px) and (max-width: 1100px) {
+  .outline-panel {
+    position: absolute;
+    inset-block: 0;
+    right: 0;
+    z-index: 30;
+    box-shadow: var(--shadow-pop);
+  }
 }
 
 /*
@@ -291,6 +354,7 @@ body::after {
 .markdown-body {
   max-width: 68ch;
   margin: 0 auto;
+  color: var(--text-primary);
   font-family: var(--font-serif);
   font-size: 16px;
   line-height: 1.8;
@@ -428,7 +492,8 @@ body::after {
 
 .markdown-body h1 {
   padding-bottom: 0.3em;
-  border-bottom: 1px solid var(--line);
+  border-bottom: 1px solid color-mix(in srgb, var(--heading-accent) 44%, var(--border-subtle));
+  color: var(--text-primary);
   font-size: 1.55em;
   letter-spacing: 0.01em;
 }
@@ -436,6 +501,7 @@ body::after {
 .markdown-body h2 {
   position: relative;
   padding-left: 0.7em;
+  color: color-mix(in srgb, var(--heading-accent) 46%, var(--text-primary));
   font-size: 1.28em;
 }
 
@@ -447,7 +513,7 @@ body::after {
   left: 0;
   width: 3px;
   border-radius: 2px;
-  background: var(--accent);
+  background: var(--heading-accent);
 }
 
 .markdown-body h3 {
@@ -546,6 +612,12 @@ body::after {
   text-decoration-color: color-mix(in srgb, var(--ink-muted) 55%, transparent);
 }
 
+.markdown-body .wiki-link-ambiguous {
+  color: var(--warning);
+  text-decoration-style: dotted;
+  text-decoration-color: color-mix(in srgb, var(--warning) 60%, transparent);
+}
+
 .markdown-body .wiki-link-unresolved:hover,
 .markdown-body .wiki-link-unresolved:focus-visible {
   color: var(--accent);
@@ -571,8 +643,8 @@ body::after {
   padding: 0.6em 1em;
   border-left: 3px solid color-mix(in srgb, var(--accent) 35%, transparent);
   border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
-  background: color-mix(in srgb, var(--accent) 4%, transparent);
-  color: var(--ink-muted);
+  background: color-mix(in srgb, var(--structure) 7%, transparent);
+  color: var(--text-secondary);
 }
 
 .markdown-body blockquote > :first-child {
@@ -586,7 +658,7 @@ body::after {
 .markdown-body hr {
   margin: 2em 0;
   border: 0;
-  border-top: 1px solid var(--line);
+  border-top: 1px solid var(--border-subtle);
 }
 
 /* 行內 code 跟區塊要長得不一樣：這個是小圓角膠囊，區塊是帶標籤的方框。 */

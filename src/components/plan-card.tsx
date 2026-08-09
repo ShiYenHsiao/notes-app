@@ -14,9 +14,9 @@ export function PlanCard({ used }: { used: number }) {
   const nearLimit = ratio >= 0.8;
 
   return (
-    <div className="grid gap-2 rounded-md border border-line/70 bg-accent-soft/35 px-3 py-2.5">
+    <div className="grid gap-2 rounded-md border border-border-subtle bg-workspace/45 px-3 py-2.5">
       <div className="flex items-baseline gap-1.5">
-        <b className="text-xs font-semibold tracking-[0.14em] text-accent">NEXUM</b>
+        <b className="text-xs font-semibold tracking-[0.14em] text-primary">NEXUM</b>
         <span className="text-2xs tracking-wider text-gold">Scholar Free</span>
       </div>
 
@@ -46,7 +46,7 @@ export function PlanCard({ used }: { used: number }) {
         href="/help"
         className="text-2xs text-accent transition-opacity duration-150 hover:opacity-70"
       >
-        升級方案 →
+        查看額度說明 →
       </Link>
     </div>
   );

@@ -1,6 +1,6 @@
 # NEXUM NOTE — 專案現況
 
-最後更新：2026-08-09（Knowledge Layer v1）。這份文件描述**目前真的跑得起來的東西**，
+最後更新：2026-08-10（Visual Identity v4）。這份文件描述**目前真的跑得起來的東西**，
 以及目前真的壞著的東西。設計理由在 [`README.md`](../README.md)，UI 規格在 [`UI.md`](UI.md)。
 
 ---
@@ -25,13 +25,14 @@ Mac 是唯一的編輯環境，手機與 iPad 只用來閱讀。
 | 預覽 | react-markdown + remark-gfm + Wiki Link／callout／highlight／heading rehype 外掛 |
 | 後端 | Supabase：Postgres、Storage、Auth，全部免費方案 |
 | 部署 | Vercel（`main` 分支 = production），含一個每日 Cron |
-| 測試 | `node --test`，165 項，沒有額外的測試框架 |
+| 測試 | `node --test`，166 項，沒有額外的測試框架 |
 
 ---
 
 ## 資料模型
 
-`supabase/migrations/` 三個檔案；Knowledge Layer 新增的是可重建索引，不改 notes 的正文模型。
+`supabase/migrations/` 四個檔案；Knowledge Layer 新增的是可重建索引，不改 notes 的正文模型。
+0004 只收斂四個 Knowledge RPC 的 EXECUTE grants，不改 business logic 或 RLS。
 
 ```
 notes       id, user_id, content, title(generated), pinned,
@@ -87,6 +88,14 @@ Quick Open。code context 不解析；同名標題保持 ambiguous，不任選�
 來源，確認後以單一 transaction 驗證 optimistic locks、留下 snapshots、改寫精確 links。
 soft delete 不動來源 Markdown，restore 後依同 title 規則重新解析。
 
+### Visual Identity v4
+Dark Mode 是 deep ink navy 的 Academic IDE；Light Mode 是 warm ivory 的 Digital Legal
+Textbook。Sidebar、文件索引、workspace、editor、preview 與 outline 使用明確的 surface depth；
+active state 以小面積暖金 indicator 搭配墨藍 hierarchy，不靠卡片 shadow。Quick Open、Slash
+Command、context menu、dialog 與 tooltip 共用 elevated surface、border、radius 與 shadow 語言。
+只改 presentation layer；Focus、View Mode、Tabs、CodeMirror、scroll sync、Knowledge Layer 與
+autosave 的 state ownership 不變。
+
 ### 維運
 每日 04:00 由 Vercel Cron 清掉超過 30 天的垃圾桶內容，**連同 Storage 上的圖片**。
 
@@ -115,7 +124,7 @@ soft delete 不動來源 Markdown，restore 後依同 title 規則重新解析�
 
 ## 測試
 
-165 項，`npm test`。
+166 項，`npm test`。
 
 | 檔案 | 項數 | 涵蓋 |
 |---|---|---|
@@ -126,7 +135,7 @@ soft delete 不動來源 Markdown，restore 後依同 title 規則重新解析�
 | `tests/slash-commands.test.mjs` | 8 | Slash Command 中英文搜尋、trigger 範圍與 snippet |
 | `tests/print-export.test.mjs` | 8 | Study / Clean、匯出日期、metadata、route path、標題去重與 Wiki Link 可讀性 |
 | `tests/wiki-links.test.mjs` | 23 | parse/code exclusion、normalization、index、rename、duplicate／delete／restore、context、CodeMirror code exclusion、autocomplete ranking 與 Preview/PDF pipeline |
-| `tests/knowledge-schema.test.mjs` | 8 | migration 欄位／索引、RLS、版本 token、title race、transaction、search_path 與 grants |
+| `tests/knowledge-schema.test.mjs` | 9 | migration 欄位／索引、RLS、版本 token、title race、transaction、search_path 與 grants |
 
 測的都是純函式。**DOM 層級的行為沒有自動化測試** —— 分頁點擊、右鍵選單的焦點、
 專注模式的動畫都是在瀏覽器裡實際操作驗證的。這是刻意的取捨，不是遺漏。

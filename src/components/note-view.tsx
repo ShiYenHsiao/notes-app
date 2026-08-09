@@ -178,7 +178,7 @@ export function NoteView({
         標籤是**資料庫欄位而不是內文的一部分**，所以它屬於這裡，不屬於編輯區裡面。
       */}
       <header
-        className={`shrink-0 border-b border-line bg-paper/80 transition-[padding] duration-200 ease-out ${
+        className={`shrink-0 border-b border-border-subtle bg-workspace transition-[padding] duration-200 ease-out ${
           focused ? "px-6 pt-2.5 pb-2" : "px-5 pt-3 pb-2.5"
         }`}
       >
@@ -189,7 +189,7 @@ export function NoteView({
 
           <div className="flex min-w-0 flex-1 items-center gap-2.5">
             <h1
-              className={`min-w-0 truncate text-lg font-semibold ${
+              className={`min-w-0 truncate border-l-2 border-gold pl-3 text-lg font-semibold ${
                 title ? "" : "text-ink-muted"
               }`}
               style={{ fontFamily: "var(--font-serif)" }}
@@ -198,10 +198,14 @@ export function NoteView({
             </h1>
 
             {focused ? (
-              <span className="shrink-0 rounded-sm bg-accent-soft px-1.5 py-0.5 text-2xs font-semibold tracking-[0.08em] text-accent">
+              <span className="shrink-0 rounded-sm bg-gold-soft px-1.5 py-0.5 text-2xs font-semibold tracking-[0.08em] text-gold">
                 專注
               </span>
             ) : null}
+          </div>
+
+          <div className="hidden shrink-0 md:block">
+            <SaveIndicator status={save.status} />
           </div>
 
           {isDesktop ? <ViewModeControl value={viewMode} onChange={setViewMode} /> : null}
@@ -273,7 +277,7 @@ export function NoteView({
           aria-label="確認筆記改名"
           className="fixed inset-0 z-[90] grid place-items-center bg-ink/20 p-5 backdrop-blur-[1px]"
         >
-          <section className="w-full max-w-md rounded-sm border border-gold/25 bg-surface p-5 shadow-[var(--shadow-pop)]">
+          <section className="w-full max-w-md rounded-lg border border-border-default bg-elevated p-5 shadow-[var(--shadow-pop)]">
             <p className="eyebrow">Rename Knowledge Links</p>
             <h2 className="mt-2 font-serif text-lg font-semibold">確認筆記改名</h2>
             <p className="mt-2 text-sm leading-relaxed text-ink-muted">
@@ -294,7 +298,7 @@ export function NoteView({
               <button
                 type="button"
                 onClick={save.confirmRename}
-                className="rounded-sm bg-accent px-3 py-1.5 text-sm font-medium text-white"
+                className="rounded-sm bg-action px-3 py-1.5 text-sm font-medium text-white hover:bg-action/90"
               >
                 更新連結並改名
               </button>
@@ -337,7 +341,7 @@ export function NoteView({
           <div
             className={`min-w-0 bg-surface transition-[flex-basis] duration-200 ease-out ${
               showPreview
-                ? "flex-1 basis-[45%] border-r border-line/80"
+                ? "flex-1 basis-[45%] border-r border-border-subtle"
                 : // 置中的是整個編輯器（含行號）而不是只有文字 —— 只置中文字的話，
                   // 行號會貼在視窗最左邊，跟它標示的那一行隔著半個螢幕
                   "mx-auto w-full max-w-[60rem]"
@@ -362,7 +366,7 @@ export function NoteView({
           /* 只有預覽時給它更多上下呼吸空間，那是真正的閱讀模式 */
           <div
             ref={previewRef}
-            className={`min-w-0 overflow-y-auto bg-paper px-6 transition-[flex-basis,padding] duration-200 ease-out lg:px-8 ${
+            className={`min-w-0 overflow-y-auto bg-workspace px-6 transition-[flex-basis,padding] duration-200 ease-out lg:px-8 ${
               showEditor ? "flex-1 basis-[55%] py-8" : focused ? "w-full py-16" : "w-full py-10"
             }`}
           >
@@ -409,19 +413,9 @@ export function NoteView({
         }}
       />
 
-      {focused ? (
-        /*
-         * 專注模式沒有頁尾，存檔狀態改成浮在右下角的一行小字。
-         * 它是背景資訊，只有出問題時才該搶注意力。
-         */
-        <div className="pointer-events-none absolute right-5 bottom-3 z-10 text-sm">
-          <SaveIndicator status={save.status} />
-        </div>
-      ) : (
-        <footer className="flex shrink-0 items-center justify-end gap-4 border-t border-line px-5 py-1.5 text-xs">
-          <SaveIndicator status={save.status} />
-        </footer>
-      )}
+      <div className="pointer-events-none absolute right-5 bottom-3 z-10 text-sm md:hidden">
+        <SaveIndicator status={save.status} />
+      </div>
 
       {pendingWikiTitle ? (
         <WikiLinkDialog
@@ -449,7 +443,7 @@ function Backlinks({
   onOpen: (id: string) => void;
 }) {
   return (
-    <section className="mt-12 border-t border-line pt-6" aria-labelledby="backlinks-title">
+    <section className="mt-12 border-t border-border-subtle pt-6" aria-labelledby="backlinks-title">
       <div className="mb-3 flex items-baseline justify-between gap-3">
         <h2 id="backlinks-title" className="font-sans text-sm font-semibold text-ink">
           Linked References
@@ -464,13 +458,13 @@ function Backlinks({
       ) : items.length === 0 ? (
         <p className="font-sans text-sm text-ink-muted">目前沒有其他筆記連到這裡。</p>
       ) : (
-        <ul className="grid gap-2.5">
+        <ul className="grid gap-1">
           {items.map((item) => (
             <li key={item.sourceId}>
               <button
                 type="button"
                 onClick={() => onOpen(item.sourceId)}
-                className="w-full rounded-sm border border-line bg-surface/55 px-3 py-2.5 text-left transition-colors hover:border-accent/35 hover:bg-accent-soft/35"
+                className="w-full border-l-2 border-border-subtle px-3 py-2.5 text-left transition-colors hover:border-gold hover:bg-hover"
               >
                 <b className="block truncate font-sans text-sm font-semibold text-accent">
                   {item.sourceTitle}
@@ -503,7 +497,7 @@ function BacklinkContext({ value }: { value: string }) {
   return (
     <>
       {before}
-      <mark className="rounded-[2px] bg-accent-soft px-0.5 text-inherit">{match[0]}</mark>
+      <mark className="rounded-sm bg-accent-soft px-0.5 text-inherit">{match[0]}</mark>
       {after}
     </>
   );
@@ -562,7 +556,7 @@ function WikiLinkDialog({
         role="dialog"
         aria-modal="true"
         aria-labelledby="wiki-create-title"
-        className="w-full max-w-sm rounded-sm border border-line bg-surface p-5 shadow-[var(--shadow-pop)]"
+        className="w-full max-w-sm rounded-lg border border-border-default bg-elevated p-5 shadow-[var(--shadow-pop)]"
       >
         <p className="eyebrow">Knowledge Link</p>
         <h2 id="wiki-create-title" className="mt-2 font-serif text-lg font-semibold">
@@ -587,7 +581,7 @@ function WikiLinkDialog({
               type="button"
               onClick={create}
               disabled={pending}
-              className="rounded-sm bg-accent px-3 py-1.5 text-sm font-medium text-white disabled:opacity-55"
+              className="rounded-sm bg-action px-3 py-1.5 text-sm font-medium text-white hover:bg-action/90 disabled:opacity-55"
             >
               {pending ? "建立中…" : `建立「${title}」`}
             </button>
@@ -662,7 +656,7 @@ function ViewModeControl({
     <div
       role="group"
       aria-label="檢視模式"
-      className="hidden shrink-0 items-center gap-0.5 rounded-md bg-list/65 p-0.5 ring-1 ring-line/70 ring-inset md:flex"
+      className="hidden shrink-0 items-center gap-0.5 rounded-md bg-list p-0.5 ring-1 ring-border-subtle ring-inset md:flex"
     >
       {modes.map((mode) => {
         const active = value === mode.value;
@@ -675,8 +669,8 @@ function ViewModeControl({
               onClick={() => onChange(mode.value)}
               className={`flex size-7 items-center justify-center rounded-sm transition-colors duration-150 ${
                 active
-                  ? "bg-surface text-accent shadow-[inset_0_0_0_1px_var(--line)]"
-                  : "text-ink-muted hover:bg-accent-soft/60 hover:text-accent"
+                  ? "bg-active text-primary shadow-[inset_0_0_0_1px_var(--border-default)]"
+                  : "text-muted hover:bg-hover hover:text-primary"
               }`}
             >
               {mode.icon}
@@ -712,8 +706,8 @@ function HeaderButton({
         onClick={onClick}
         aria-label={ariaLabel}
         aria-pressed={pressed}
-        className={`flex size-8 items-center justify-center rounded-md transition-colors duration-150 hover:bg-accent-soft ${
-          pressed ? "bg-accent-soft text-accent" : "text-ink-muted hover:text-accent"
+        className={`flex size-8 items-center justify-center rounded-md transition-colors duration-150 hover:bg-hover ${
+          pressed ? "bg-active text-primary" : "text-muted hover:text-primary"
         }`}
       >
         {children}
@@ -796,8 +790,21 @@ const STATUS_LABELS = {
  */
 function SaveIndicator({ status }: { status: keyof typeof STATUS_LABELS }) {
   const isProblem = status === "conflict" || status === "error";
+  const tone = isProblem
+    ? "bg-danger"
+    : status === "saved"
+      ? "bg-success"
+      : status === "saving"
+        ? "bg-gold"
+        : "bg-warning";
   return (
-    <span className={isProblem ? "font-semibold text-danger" : "text-ink-muted/70"}>
+    <span
+      role="status"
+      className={`inline-flex items-center gap-1.5 whitespace-nowrap ${
+        isProblem ? "font-semibold text-danger" : "text-muted"
+      }`}
+    >
+      <span className={`size-1.5 rounded-full ${tone}`} aria-hidden />
       {STATUS_LABELS[status]}
     </span>
   );

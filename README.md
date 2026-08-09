@@ -120,10 +120,10 @@ NEXUM 取自 nexus（連結、樞紐）：這個工具要做的不是收集片�
 
 ### 筆記列表與右鍵選單
 
-列表每一列 68px：標題 14px，修改時間與標籤 12px。**不放摘要** —— 掃列表時要的是
-「是哪一篇」，摘要只會讓每一列都長得很像。也不做卡片牆，卡片牆一頁放不了幾篇。
+列表每一列 76px：標題 14px、單行摘要、修改時間與標籤 12px。摘要直接使用列表已取得的
+excerpt，不增加查詢；仍維持扁平列表，不做一頁放不了幾篇的卡片牆。
 
-Hover 是底色變化加一點陰影（微浮起），active 用品牌色 highlight 加左側一條內縮的 accent。
+Hover 只調整底色與文字對比，不做浮起陰影；active 用 selected surface 加左側一條內縮暖金線。
 
 右鍵，或滑上去點右上角的 `⋯`，都會開**同一個選單、同一份項目**
 （[`src/components/context-menu.tsx`](src/components/context-menu.tsx)）：開啟、釘選／
@@ -233,7 +233,7 @@ production build 不會出現它。
 
 ### 工具列與 tooltip
 
-工具列高 44px，按鈕 32×32、圖示 16px，分四組用細分隔線斷開：復原／重做 ｜ 標題、粗體、
+工具列高 40px，按鈕 28×28、圖示 16px，分四組用細分隔線斷開：復原／重做 ｜ 標題、粗體、
 斜體、螢光筆 ｜ 清單、編號、引用 ｜ 連結、圖片、表格、重點區塊、分隔線 ｜ 更多。
 
 詳細的分組理由與備註框的四種類型見下一節。
@@ -273,7 +273,7 @@ GitHub 原本的五種（NOTE／TIP／IMPORTANT／WARNING／CAUTION）**繼續�
 CodeMirror 預設長得像 IDE，這裡把它調成「筆記編輯器」：
 
 - **行號縮窄、對比壓到 45%**：它是輔助資訊，不該跟正文搶視線
-- **游標所在行幾乎看不見**（3.5% 的墨色）。原本用墨藍 6%，在一整片暖白裡是一條藍帶，很吵
+- **游標所在行幾乎看不見**（低於 5% 的 structure tint），保留定位感但不形成一條藍帶
 - **四個低飽和語義色族**（[`syntax`](src/components/markdown-editor.tsx) 這份 HighlightStyle）：
   結構墨藍、知識暖金、引用藍與技術紫灰。Header／List／Quote marker 由 Lezer syntax tree
   精準標示，清單正文不再跟著 marker 一起變淡；中文法律條列直接重用既有 parser，只裝飾
@@ -403,11 +403,14 @@ Schema 在 `supabase/migrations/0003_knowledge_links.sql`。既有資料不在 m
 重跑可清除此 key 後重新載入。單篇 index 失敗不回滾已成功保存的 Markdown，下一次保存或
 background batch 會修復。
 
-**視覺風格**
+**視覺風格（Visual Identity v4）**
 
-- 溫暖紙感：偏米黃的底色、襯線字體、較寬的行高，適合長時間閱讀與寫作。
-- 深色主題另外調整，不是把淺色直接反相 — 底色用暖調的深棕灰而非純黑，維持同樣的紙感。
-- 底色分四層：側邊欄 → 筆記列表 → 頁面 → 編輯區，每層都要看得出差別，不能只靠分隔線撐。
+- Dark Mode 是 deep ink navy 的 **Academic IDE**；Preview 同樣是深色閱讀表面，不做 dark shell
+  裡塞白紙。
+- Light Mode 是 warm ivory 的 **Digital Legal Textbook**：襯線閱讀文字、克制的金色結構訊號，
+  但控制元件仍維持精準的 desktop app geometry。
+- 底色分成 app、sidebar、document index、workspace、editor／elevated surface；層次先靠 surface、
+  spacing 與 typography，不靠每區一圈 border 或卡片 shadow。
 - 主題切換在側邊欄的「設定」選單裡（淺／深／跟隨瀏覽器）。**「跟隨瀏覽器」跟的是瀏覽器的外觀設定，不是作業系統** — Chrome 可以自己設成深色而蓋掉系統設定，這正是需要手動選項的原因。
 - 色票用 CSS 的 `light-dark()` 寫成單一來源，不要淺色深色各維護一份。
 - 程式碼區塊仍用等寬字體，與內文的襯線字體形成對比。
@@ -663,7 +666,7 @@ npm run dev
 ```
 
 資料表要在 Supabase 的 SQL Editor 依序執行 `supabase/migrations/0001_init.sql`、
-`0002_storage.sql`、`0003_knowledge_links.sql`。
+`0002_storage.sql`、`0003_knowledge_links.sql`、`0004_restrict_knowledge_rpc_grants.sql`。
 環境變數還沒設定時首頁會顯示設定說明，dev server 照樣跑得起來。
 
 部署到 Vercel 之後還要設兩個環境變數，垃圾桶的定期清理才會運作（見上面那一節）：
@@ -712,7 +715,7 @@ M3 已做：匯出、深淺色主題與切換器、圖片壓縮、內建使用�
 
 **NEXUM NOTE 的產品化（品牌、版面比例、側邊欄、工具列、tooltip、閱讀模式、空狀態）已完成**，
 在瀏覽器裡深淺色都看過：品牌標與文字標、額度卡的金色進度、側邊欄 active 的左側 accent、
-工具列四組分隔與 tooltip（名稱 + 快捷鍵）、預覽區的標題層級與引用底色、列表 68px 的列高。
+工具列四組分隔與 tooltip（名稱 + 快捷鍵）、預覽區的標題層級與引用底色、列表 76px 的列高與摘要。
 
 **多筆記工作區（分頁、右鍵選單、側邊欄收合、設計 token）已完成**，在瀏覽器裡實際操作
 驗證過：右鍵與 `⋯` 開出同一個選單、`Esc` 與點外面都會關並把焦點還回去、關掉分頁後
@@ -765,7 +768,7 @@ npm test          # 只跑測試
 安全 metadata、route path、文件標題去重與 Wiki Link 可讀性；
 [`tests/wiki-links.test.mjs`](tests/wiki-links.test.mjs) 共 23 項，涵蓋 parser、code exclusion、
 resolution、rename、context、autocomplete 與 Preview/PDF；
-[`tests/knowledge-schema.test.mjs`](tests/knowledge-schema.test.mjs) 共 8 項，靜態驗證 migration、
-indexes、RLS、title race lock 與 transaction guard。總計 165 項。
+[`tests/knowledge-schema.test.mjs`](tests/knowledge-schema.test.mjs) 共 9 項，靜態驗證 migration、
+indexes、RLS、title race lock、transaction guard 與 Knowledge RPC grants。總計 166 項。
 
 測試直接 import `.ts` 原始碼（Node 的型別剝離），不需要先編譯。

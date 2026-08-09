@@ -27,7 +27,7 @@ export function OutlinePanel({
     <aside
       aria-label="大綱"
       aria-hidden={open ? undefined : true}
-      className={`hidden shrink-0 flex-col overflow-hidden border-l border-line bg-list/65 transition-[width,opacity] duration-200 ease-out lg:flex ${
+      className={`outline-panel hidden shrink-0 flex-col overflow-hidden border-l border-border-subtle bg-list transition-[width,opacity] duration-200 ease-out lg:flex ${
         open ? "w-[208px] opacity-100" : "pointer-events-none w-0 opacity-0"
       }`}
     >
@@ -59,16 +59,16 @@ export function OutlinePanel({
                 style={{ paddingLeft: `${(item.level - 1) * 12 + 10}px` }}
                 className={`relative flex w-full items-center rounded-md py-1.5 pr-2 text-left text-sm transition-colors duration-150 ${
                   active
-                    ? "bg-accent-soft font-medium text-accent"
+                    ? "bg-transparent font-medium text-primary"
                     : item.level === 1
-                      ? "font-medium text-ink hover:bg-accent-soft/50"
-                      : "text-ink-muted hover:bg-accent-soft/50 hover:text-ink"
+                      ? "font-medium text-secondary hover:bg-hover"
+                      : "text-muted hover:bg-hover hover:text-primary"
                 }`}
               >
                 {/* 目前這一節在最左邊留一條短標記，掃一眼就知道讀到哪 */}
                 {active ? (
                   <span
-                    className="absolute top-1.5 bottom-1.5 left-0 w-0.5 rounded-full bg-accent"
+                    className="absolute top-1.5 bottom-1.5 left-0 w-0.5 rounded-full bg-gold"
                     aria-hidden
                   />
                 ) : null}

@@ -88,7 +88,7 @@ export function TagBar({
       {tags.map((tag) => (
         <span
           key={tag.id}
-          className="group/chip flex items-center gap-1 rounded-md border border-line/80 bg-accent-soft/65 py-0.5 pr-1.5 pl-2 text-xs font-medium text-accent transition-colors duration-150"
+          className="group/chip flex items-center gap-1 rounded-md border border-border-subtle bg-active/70 py-0.5 pr-1.5 pl-2 text-xs font-medium text-secondary transition-colors duration-150"
         >
           {tag.name}
           <button

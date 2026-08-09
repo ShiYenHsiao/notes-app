@@ -40,7 +40,7 @@ export function LoginForm({ next }: { next: string }) {
       <button
         type="submit"
         disabled={pending}
-        className="rounded-sm border border-accent bg-accent px-4 py-3 text-sm font-extrabold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+        className="rounded-sm border border-action bg-action px-4 py-3 text-sm font-extrabold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
       >
         {pending ? "寄送中…" : "寄登入連結給我"}
       </button>

@@ -12,8 +12,8 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   // 深淺色主題都做了，讓瀏覽器 UI（網址列）跟著換色
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#fbf8f0" },
-    { media: "(prefers-color-scheme: dark)", color: "#1a2724" },
+    { media: "(prefers-color-scheme: light)", color: "#e8e4da" },
+    { media: "(prefers-color-scheme: dark)", color: "#0a1017" },
   ],
 };
 

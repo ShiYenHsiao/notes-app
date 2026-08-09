@@ -90,7 +90,7 @@ export function NoteList({ notes, tags }: { notes: NoteSummary[]; tags: TagSumma
   return (
     <>
       <div className="shrink-0 px-3 pt-3 pb-2.5">
-        <div className="flex h-9 items-center gap-2 rounded-md border border-line bg-surface px-2.5 transition-colors duration-150 focus-within:border-accent">
+        <div className="flex h-9 items-center gap-2 rounded-md border border-border-subtle bg-workspace px-2.5 transition-colors duration-150 focus-within:border-border-default focus-within:bg-elevated">
           <IconSearch size={15} className="shrink-0 text-ink-muted" />
           <input
             ref={searchInput}
@@ -104,7 +104,7 @@ export function NoteList({ notes, tags }: { notes: NoteSummary[]; tags: TagSumma
 
         {activeTag || pinnedOnly ? (
           <div className="mt-2 flex items-center gap-2">
-            <span className="rounded-full bg-accent-soft px-2.5 py-0.5 text-2xs font-semibold text-accent">
+            <span className="rounded-md bg-active px-2.5 py-0.5 text-2xs font-semibold text-secondary">
               {activeTag ? `# ${activeTag.name}` : "已釘選"}
             </span>
             <Link
@@ -237,10 +237,10 @@ function NoteRow({
       <Link
         href={href}
         aria-current={active ? "page" : undefined}
-        className={`grid h-[68px] content-center gap-1.5 rounded-md px-3 transition-colors duration-150 ${
+        className={`grid h-[76px] content-center gap-1 px-3 transition-colors duration-150 ${
           active
-            ? "bg-accent-soft/55 shadow-[inset_2px_0_0_var(--accent)]"
-            : "hover:bg-surface/65"
+            ? "bg-active shadow-[inset_2px_0_0_var(--accent-gold)]"
+            : "hover:bg-hover"
         }`}
       >
         <div className="flex items-center gap-1.5">
@@ -248,13 +248,15 @@ function NoteRow({
             <IconPinned size={13} className="shrink-0 text-gold" aria-label="已釘選" />
           ) : null}
           <b
-            className={`truncate text-base font-medium ${active ? "text-accent" : "text-ink"}`}
+            className={`truncate text-base font-medium ${active ? "text-primary" : "text-ink"}`}
           >
             {displayTitle(note)}
           </b>
         </div>
 
-        <div className="flex items-center gap-2 text-sm text-ink-muted">
+        <p className="truncate text-xs leading-tight text-faint">{note.excerpt || "尚無摘要"}</p>
+
+        <div className="flex items-center gap-2 text-xs text-muted">
           <time className="shrink-0 tabular-nums">{note.updated_label}</time>
           {note.tags.length > 0 ? (
             <span className="truncate">{note.tags.map((tag) => `#${tag}`).join("　")}</span>

@@ -44,7 +44,7 @@ export function EditorToolbar({
     <div
       role="toolbar"
       aria-label="Markdown 編輯工具"
-      className="flex h-11 shrink-0 flex-nowrap items-center gap-0.5 overflow-x-auto border-b border-line bg-paper/55 px-2.5"
+      className="flex h-10 shrink-0 flex-nowrap items-center gap-0.5 overflow-x-auto border-b border-border-subtle bg-workspace px-3"
     >
       <Button label="復原" shortcut="⌘Z" onClick={() => api.current?.undo()}>
         <IconUndo />
@@ -176,7 +176,7 @@ function Button({
         type="button"
         aria-label={label}
         onClick={onClick}
-        className="flex size-8 items-center justify-center rounded-md text-ink-muted transition-colors duration-150 hover:bg-accent-soft hover:text-accent"
+        className="flex size-7 items-center justify-center rounded-md text-muted transition-colors duration-150 hover:bg-hover hover:text-primary"
       >
         {children}
       </button>
@@ -186,5 +186,5 @@ function Button({
 
 /** 群組分隔。非常淡 —— 它只要讓眼睛停一下，不需要被看見。 */
 function Divider() {
-  return <span className="mx-1.5 h-3.5 w-px shrink-0 bg-line/70" aria-hidden />;
+  return <span className="mx-1.5 h-3.5 w-px shrink-0 bg-border-subtle" aria-hidden />;
 }

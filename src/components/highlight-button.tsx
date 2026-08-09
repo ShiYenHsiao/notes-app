@@ -62,7 +62,7 @@ export function HighlightButton({ api }: { api: React.RefObject<EditorApi | null
           type="button"
           aria-label="螢光筆"
           onClick={() => apply(undefined)}
-          className="flex size-8 items-center justify-center rounded-md text-ink-muted transition-colors duration-150 hover:bg-accent-soft hover:text-accent"
+          className="flex size-7 items-center justify-center rounded-md text-muted transition-colors duration-150 hover:bg-hover hover:text-primary"
         >
           <IconHighlight />
         </button>
@@ -74,20 +74,20 @@ export function HighlightButton({ api }: { api: React.RefObject<EditorApi | null
           aria-label="選螢光筆顏色"
           aria-expanded={open}
           onClick={() => setOpen((value) => !value)}
-          className="flex h-8 w-3.5 items-center justify-center rounded-md text-2xs text-ink-muted transition-colors duration-150 hover:bg-accent-soft hover:text-accent"
+          className="flex h-7 w-3.5 items-center justify-center rounded-md text-2xs text-muted transition-colors duration-150 hover:bg-hover hover:text-primary"
         >
           ▾
         </button>
       </Tooltip>
 
       {open ? (
-        <div className="absolute top-9 left-0 z-20 w-44 rounded-md border border-line bg-surface py-1 shadow-pop">
+        <div className="absolute top-8 left-0 z-20 w-44 rounded-md border border-border-default bg-elevated py-1 shadow-pop">
           {COLORS.map((color) => (
             <button
               key={color.label}
               type="button"
               onClick={() => apply(color.value)}
-              className="flex w-full items-center gap-2 px-3 py-1.5 text-sm text-ink transition-colors duration-150 hover:bg-accent-soft"
+              className="flex w-full items-center gap-2 px-3 py-1.5 text-sm text-primary transition-colors duration-150 hover:bg-hover"
             >
               <span
                 className="size-3.5 shrink-0 rounded-sm border border-line"

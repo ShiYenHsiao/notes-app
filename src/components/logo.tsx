@@ -36,7 +36,7 @@ export function NexumMark({ size = 20, className }: { size?: number; className?:
 export function NexumBadge({ size = 32, className }: { size?: number; className?: string }) {
   return (
     <span
-      className={`grid shrink-0 place-items-center rounded-md bg-accent text-white ${className ?? ""}`}
+      className={`grid shrink-0 place-items-center rounded-md border border-gold/35 bg-action text-white shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--accent-fill)_72%,black)] ${className ?? ""}`}
       style={{ width: size, height: size }}
     >
       <NexumMark size={Math.round(size * 0.62)} />
@@ -51,8 +51,8 @@ export function NexumBadge({ size = 32, className }: { size?: number; className?
 export function NexumWordmark({ className }: { className?: string }) {
   return (
     <span className={`flex min-w-0 flex-col leading-tight ${className ?? ""}`}>
-      <b className="truncate text-base font-semibold tracking-[0.14em]">NEXUM</b>
-      <span className="truncate text-2xs font-medium tracking-[0.22em] text-ink-muted">NOTE</span>
+      <b className="truncate text-base font-semibold tracking-[0.16em] text-primary">NEXUM</b>
+      <span className="truncate text-2xs font-medium tracking-[0.24em] text-gold">NOTE</span>
     </span>
   );
 }

@@ -102,14 +102,14 @@ function Shell({
   }, []);
 
   return (
-    <div className="flex h-dvh">
+    <div className="flex h-dvh bg-background">
       {/*
         收合不是把側邊欄藏起來，而是縮成一條 icon rail：導覽入口全部留著，
         滑上去有 tooltip。整條消失的話，收合狀態下想切到垃圾桶只能靠記網址。
       */}
       <aside
         aria-hidden={focused || undefined}
-        className={`hidden shrink-0 flex-col overflow-hidden border-r border-line bg-rail pb-3 transition-[width,opacity,transform] duration-200 ease-out lg:flex ${
+        className={`hidden shrink-0 flex-col overflow-hidden border-r border-border-subtle bg-sidebar pb-3 transition-[width,opacity,transform] duration-200 ease-out lg:flex ${
           focused
             ? hidden
             : sidebarOpen
@@ -142,6 +142,11 @@ function Shell({
 
         {/* 中段獨立捲動：標籤再多也不會把下面的方案卡與設定推出畫面 */}
         <div className="mt-3 min-h-0 flex-1 overflow-y-auto">
+          {sidebarOpen ? (
+            <div className="px-2.5 pb-1.5">
+              <span className="eyebrow">工作區</span>
+            </div>
+          ) : null}
           <nav className="grid gap-0.5">
             {/* 釘選是網址上的篩選條件，讀它需要 useSearchParams，所以要有 Suspense 邊界 */}
             <Suspense fallback={null}>
@@ -214,7 +219,7 @@ function Shell({
 
       <section
         aria-hidden={focused || undefined}
-        className={`w-full shrink-0 flex-col overflow-hidden border-r border-line bg-list transition-[width,opacity,transform] duration-200 ease-out md:flex ${
+        className={`w-full shrink-0 flex-col overflow-hidden border-r border-border-subtle bg-list transition-[width,opacity,transform] duration-200 ease-out md:flex ${
           noteOpen ? "hidden" : "flex"
         } ${focused ? `md:w-0 ${hidden}` : "md:w-[clamp(244px,21vw,268px)]"}`}
       >
@@ -227,14 +232,16 @@ function Shell({
         <form action={createNote} className="border-t border-line p-3 lg:hidden">
           <button
             type="submit"
-            className="w-full rounded-md bg-accent px-3 py-2.5 text-sm font-semibold text-white"
+            className="w-full rounded-md bg-action px-3 py-2.5 text-sm font-semibold text-white hover:bg-action/90"
           >
             新增筆記
           </button>
         </form>
       </section>
 
-      <main className={`flex-1 flex-col overflow-hidden md:flex ${noteOpen ? "flex" : "hidden"}`}>
+      <main
+        className={`flex-1 flex-col overflow-hidden bg-workspace md:flex ${noteOpen ? "flex" : "hidden"}`}
+      >
         {/* 專注模式收起分頁列：現在只有一篇筆記重要 */}
         {focused ? null : <NoteTabs notes={notes} />}
         <div className="min-h-0 flex-1">{children}</div>
@@ -402,13 +409,13 @@ function RailLink({
         compact ? "w-9.5 justify-center px-0" : "px-2.5"
       } ${
         active
-          ? "bg-accent-soft font-medium text-accent"
-          : "text-ink hover:bg-accent-soft/40"
+          ? "bg-active font-medium text-primary"
+          : "text-secondary hover:bg-hover hover:text-primary"
       }`}
     >
       {active ? (
         <span
-          className="absolute top-2 bottom-2 left-0 w-0.5 rounded-full bg-accent"
+          className="absolute top-2 bottom-2 left-0 w-0.5 rounded-full bg-gold"
           aria-hidden
         />
       ) : null}
@@ -456,8 +463,8 @@ function SidebarAction({
           compact ? "justify-center px-0" : "px-2.5"
         } ${
           primary
-            ? "bg-accent text-white hover:bg-accent/90"
-            : "text-ink-muted hover:bg-accent-soft hover:text-accent"
+            ? "bg-action text-white shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--accent-fill)_72%,black)] hover:bg-action/90"
+            : "text-muted hover:bg-hover hover:text-primary"
         }`}
       >
         <span className="shrink-0">{icon}</span>
@@ -484,7 +491,7 @@ function SidebarButton({
         type="button"
         onClick={onClick}
         aria-label={label}
-        className={`flex h-9.5 w-full items-center gap-2.5 rounded-md text-base text-ink transition-colors duration-150 hover:bg-accent-soft/50 ${
+        className={`flex h-9.5 w-full items-center gap-2.5 rounded-md text-base text-secondary transition-colors duration-150 hover:bg-hover hover:text-primary ${
           compact ? "justify-center px-0" : "px-2.5"
         }`}
       >

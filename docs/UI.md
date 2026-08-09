@@ -3,8 +3,16 @@
 設計系統與版面結構的參考。動 UI 之前先讀這份；每一條背後的取捨在
 [`README.md`](../README.md)。
 
+目前版本：**Visual Identity v4 — Academic IDE × Digital Legal Textbook**。
+
 視覺方向：**Premium／Academic／Focused／Calm／Precise**。
 不是 dashboard，不是後台管理系統，不是 SaaS 模板。
+
+- Dark Mode 是深墨藍的 Academic IDE：工作表面、閱讀表面與輔助導覽各有深度，Preview
+  不使用白紙。
+- Light Mode 是暖象牙色的 Digital Legal Textbook：保留紙感，但互動控制仍維持桌面工具的
+  精準度，不是純白 SaaS dashboard。
+- 兩種模式共用 spacing、geometry、interaction 與 state；palette 不是互相反相。
 
 ---
 
@@ -36,20 +44,22 @@
 
 | Token | 用途 |
 |---|---|
-| `--rail` / `--list` / `--paper` / `--surface` | 四層底色：側邊欄 → 筆記列表 → 頁面 → 編輯區 |
-| `--ink` / `--ink-muted` | 文字。帶暖的深灰，不是純黑 |
-| `--line` | 分隔線。比底色落差更輕，只負責收邊 |
+| `--background` | App 最底層；Light 是暖中性色，Dark 是 deep ink navy |
+| `--surface-sidebar` / `--surface-list` / `--surface-workspace` / `--surface-editor` | 導覽 → 文件索引 → 工作區 → 編輯表面 |
+| `--surface-elevated` / `--surface-hover` / `--surface-active` | 浮層、hover 與 selected state |
+| `--border-subtle` / `--border-default` | 區域收邊與真正需要 boundary 的互動元件 |
+| `--text-primary` / `--text-secondary` / `--text-muted` / `--text-faint` | 四階文字 hierarchy |
 | `--syntax-mark` | 編輯器裡 Markdown 符號（`#`、`**`、`==`、`>`）的暖灰 |
-| `--syntax-structure` | 編輯器的標題、清單、引用與中文法律條列 marker |
+| `--structure` / `--syntax-structure` | 標題、清單、引用與中文法律條列 marker |
 | `--reference` / `--reference-muted` | 連結文字、URL 與外部參照 |
 | `--technical` / `--technical-soft` | Code、delimiter 與 Markdown mechanics |
 | `--accent` / `--accent-soft` | 墨藍與它的淡底 |
-| `--gold` / `--gold-soft` | 暖金 |
-| `--insight` | 「自我理解」備註框與 Editor marker |
-| `--danger` / `--danger-soft` | 破壞性操作 |
+| `--accent-gold` / `--accent-gold-muted` | active indicator、品牌細節與知識強調 |
+| `--success` / `--warning` / `--danger` | 儲存狀態、ambiguous reference 與破壞性操作 |
 | `--hl-yellow` / `-green` / `-pink` / `-blue` | 四色螢光筆，刻意降飽和 |
 
-深色主題不是把淺色反相：底色用暖調的深棕灰而非純黑，螢光色要再降飽和、提一點亮度。
+`--rail`、`--list`、`--paper`、`--surface` 等舊 token 仍是 semantic palette 的相容 alias，
+讓既有元件不用為了改名一次重寫。新的視覺決策只在 semantic palette 調整。
 
 ### 字級
 
@@ -89,7 +99,7 @@
 │ 新增    │              │  ├──────────────────────────┤  │
 │ 搜尋    │  筆記 A      │  │ 標題 + 標籤 + 操作        │  │
 │ ─────   │  筆記 B      │  ├──────────────────────────┤  │
-│ 所有    │  筆記 C      │  │ Toolbar        44px      │  │
+│ 所有    │  筆記 C      │  │ Toolbar        40px      │  │
 │ 釘選    │              │  ├────────────┬──────┬─────┤  │
 │ 說明    │              │  │ Editor 45% │ 55%  │大綱 │  │
 │ 垃圾桶  │              │  │            │      │208px│  │
@@ -119,17 +129,17 @@
 品牌區 56px → 新增筆記 → 搜尋筆記 → 導覽 → 標籤 → 額度卡 → 設定與收合。
 
 - 導覽列高 38px、圖示 17px、文字 14px
-- Active：淡墨藍底 + 左側一條短 accent。**不要用邊框** —— 一整排項目時邊框會互相干擾
+- Active：`surface-active` + 左側一條短暖金 indicator。**不要用邊框** —— 一整排項目時邊框會互相干擾
 - 計數 10px 且更淡，它是參考資訊
 - 收合是縮成 icon rail 而不是整條藏起來，每個入口都有 tooltip
-- 額度卡：`accent-soft/35`、無陰影、暖金只在進度條與 Scholar Free 標記上
+- 額度卡：`surface-workspace/45`、無陰影、暖金只在進度條與 Scholar Free 標記上
 
 ### Note List
-扁平列表，**不要卡片牆**。每列 68px：標題 14px、時間與標籤 12px、**不放摘要**
-（掃列表要的是「是哪一篇」）。
+扁平列表，**不要卡片牆**。每列 76px：標題 14px、單行摘要、時間與標籤。摘要直接使用
+列表原本已取得的 excerpt，不增加 query；靠文字階層提高密度，不用更小的主要字體。
 
-- Active：`bg-surface` + 左側 2px inset accent
-- Hover：底色變化加一點陰影（微浮起）
+- Active：`surface-active` + 左側 2px 暖金 indicator
+- Hover：只改 surface 與文字對比，不做浮起動畫
 - Pinned：暖金**只用在星號圖示**，不要整列變金色
 - 右鍵與 hover 的 `⋯` 開**同一個選單、同一份項目**
 
@@ -139,7 +149,7 @@
 低頻的收進 `⋯`（釘選、移至垃圾桶）。版本紀錄自帶面板所以保留獨立按鈕。
 
 ### Toolbar
-高 44px、按鈕 32×32、圖示 16px。四組用**非常淡**的分隔線（`line/70`）斷開：
+高 40px、按鈕 28×28、圖示 16px。四組用**非常淡**的分隔線斷開：
 復原重做 ｜ 文字格式 ｜ 清單 ｜ 插入 ｜ 更多。
 
 - 每個按鈕都要有 tooltip（名稱 + 快捷鍵）與 `aria-label`
@@ -150,7 +160,7 @@
 目標是「看起來像 NEXUM 而不是像 IDE」：
 
 - 行號縮到 39px、對比壓到 45%
-- 游標所在行用 3.5% 的墨色（不要用墨藍，那在暖白裡是一條藍帶）
+- 游標所在行用低於 5% 的 structure tint，維持可辨識但不形成色帶
 - Markdown 只用四個低飽和語義家族：結構墨藍、知識暖金、引用藍、技術紫灰
 - Header／List／Quote marker 由 Lezer syntax tree 精準標示；清單正文維持正常墨色
 - 中文法律條列 marker 重用既有 parser，只裝飾可見行，不另寫一套輸入規則
@@ -196,8 +206,10 @@
 - 不用 JS 手算分頁，不承諾 browser-native print 無法穩定提供的自訂頁碼與逐頁 header/footer
 
 ### Outline
-永遠掛著、用寬度收合（200ms）。長大綱自己捲。當前章節有底色 + 左側短標記，
-捲動時跟著換（`use-active-heading.ts`，rAF throttle）。
+永遠掛著、用寬度收合（200ms）。長大綱自己捲。當前章節只用文字對比 + 左側短金線，
+不鋪大面積 active background；捲動時跟著換（`use-active-heading.ts`，rAF throttle）。
+1280px 以上是 208px supporting column；1024–1100px 改成同元件的 overlay presentation，
+避免同時擠壓 Editor 與 Preview，state、active heading 與 click navigation 都不另建一套。
 
 ---
 
@@ -216,7 +228,8 @@
 | 專注 + `⌘3` | 純閱讀。只剩標題、標籤與 68ch 閱讀欄，上下留白加大 |
 
 大綱在專注模式預設收起（兩種模式各記一份開合狀態），但隨時可以打開。
-存檔狀態在專注模式浮到右下角，12px 低對比，只有 error 才提高權重。
+存檔狀態以小圓點 + 文字放在標題列，只有 error 才提高權重；窄於桌機 header 的唯讀畫面
+不額外製造狀態列。
 標題旁以小型「專注」標記安靜提示目前狀態；三種檢視控制仍留在標題列。
 
 ---

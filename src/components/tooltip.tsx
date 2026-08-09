@@ -145,7 +145,7 @@ export function Tooltip({
                 })`,
                 opacity: shown ? 1 : 0,
               }}
-              className="pointer-events-none fixed z-[60] grid gap-1 rounded-md border border-line bg-surface px-2.5 py-1.5 text-center leading-none whitespace-nowrap shadow-pop transition-[opacity,transform] duration-150 ease-out"
+              className="pointer-events-none fixed z-[60] grid gap-1 rounded-md border border-border-default bg-elevated px-2.5 py-1.5 text-center leading-none whitespace-nowrap shadow-pop transition-[opacity,transform] duration-150 ease-out"
             >
               <span className="text-xs text-ink">{label}</span>
               {shortcut ? (
