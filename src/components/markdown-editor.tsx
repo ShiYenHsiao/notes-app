@@ -260,6 +260,19 @@ export function MarkdownEditor({
       }),
     });
 
+    const animationWindow = view.dom.ownerDocument.defaultView ?? window;
+    let destroyed = false;
+    let revealFrame: number | null = null;
+
+    /*
+     * EditorView 建構時會自己 requestMeasure，但那次可能早於外層 flex 尺寸與主題 CSS
+     * 穩定。下一個 paint 再用官方 API 排一次，補上被 CodeMirror 的 ResizeObserver
+     * 初始防抖略過的那次幾何變化。字體載入與之後的容器 resize 仍交給 CodeMirror。
+     */
+    const initialMeasureFrame = animationWindow.requestAnimationFrame(() => {
+      view.requestMeasure();
+    });
+
     view.focus();
 
     if (apiRef) {
@@ -315,11 +328,10 @@ export function MarkdownEditor({
           /*
            * 用 coordsAtPos 量真正的 DOM，不用 lineBlockAt。
            *
-           * lineBlockAt 讀的是 CodeMirror 自己維護的高度表，而那張表在這個專案裡是錯的：
-           * 它在主題的 CSS 生效前就量過一次，之後沒有重新校正 —— documentPadding.top
-           * 停在 0（實際 28）、defaultLineHeight 停在 14（實際約 24），整份文件的高度
-           * 因此少算了四分之一。coordsAtPos 走的是 Range.getBoundingClientRect，
-           * 拿到的是畫面上真正的位置。
+           * lineBlockAt 讀的是 CodeMirror 自己維護的估算高度表。它曾在主題 CSS 穩定前
+           * 完成初始量測，讓 documentPadding.top 停在 0（實際 28）、defaultLineHeight
+           * 停在 14（實際約 24）。revealLine 會要求重新量測，但捲動同步需要的是當下
+           * DOM 的精確位置，仍以 coordsAtPos 的 Range.getBoundingClientRect 為準。
            *
            * 代價是沒渲染到的行問不出位置（回傳 null）。對捲動同步來說夠用：需要的錨點
            * 都在視窗附近，而頭尾兩端由 mapScroll 自己補。
@@ -334,16 +346,53 @@ export function MarkdownEditor({
           return coords.top - scroller.getBoundingClientRect().top + scroller.scrollTop;
         },
         revealLine(number) {
-          // 行號可能來自還沒同步的內容（預覽有 120ms 的合併延遲），超出範圍就夾住
-          const clamped = Math.min(Math.max(number, 1), view.state.doc.lines);
-          const line = view.state.doc.line(clamped);
+          /*
+           * 先讓 CodeMirror 在這個 frame 量完最新的 padding、行高、縮放與容器尺寸，
+           * 下一個 frame 才送 scroll effect。兩者都走官方 API，不自行換算 scrollTop。
+           * 連點大綱時只保留最後一次，避免舊目標晚一拍蓋掉新目標。
+           */
+          view.requestMeasure();
+          if (revealFrame !== null) {
+            animationWindow.cancelAnimationFrame(revealFrame);
+          }
+          revealFrame = animationWindow.requestAnimationFrame(() => {
+            revealFrame = null;
+            if (destroyed) {
+              return;
+            }
 
-          view.dispatch({
-            selection: { anchor: line.from },
-            // start：讓那一行落在畫面上方，底下才看得到接下來的內容
-            effects: EditorView.scrollIntoView(line.from, { y: "start", yMargin: 24 }),
+            // 行號可能來自還沒同步的內容（預覽有 120ms 的合併延遲），超出範圍就夾住
+            const clamped = Math.min(Math.max(number, 1), view.state.doc.lines);
+            const line = view.state.doc.line(clamped);
+
+            view.dispatch({
+              selection: { anchor: line.from },
+              /*
+               * 遠處的行尚未進 DOM 時，CodeMirror 看到的是整塊 gap；先用 start 讓
+               * 官方虛擬視窗把目標行畫出來，再量一次後補上實際的一行閱讀脈絡。
+               */
+              effects: EditorView.scrollIntoView(line.from, { y: "start" }),
+            });
+            view.requestMeasure();
+            revealFrame = animationWindow.requestAnimationFrame(() => {
+              revealFrame = null;
+              if (destroyed) {
+                return;
+              }
+
+              const latestLine = view.state.doc.line(
+                Math.min(Math.max(number, 1), view.state.doc.lines),
+              );
+              view.dispatch({
+                effects: EditorView.scrollIntoView(latestLine.from, {
+                  y: "start",
+                  // 用量測後的一行高度留閱讀脈絡，不再猜一個固定 pixel offset。
+                  yMargin: view.defaultLineHeight,
+                }),
+              });
+              view.focus();
+            });
           });
-          view.focus();
         },
         focus() {
           view.focus();
@@ -354,6 +403,11 @@ export function MarkdownEditor({
     onReadyRef.current?.();
 
     return () => {
+      destroyed = true;
+      animationWindow.cancelAnimationFrame(initialMeasureFrame);
+      if (revealFrame !== null) {
+        animationWindow.cancelAnimationFrame(revealFrame);
+      }
       if (apiRef) {
         apiRef.current = null;
       }
